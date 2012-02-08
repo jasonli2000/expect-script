@@ -1,0 +1,66 @@
+#---------------------------------------------------------------------------
+# Copyright 2011 The Open Source Electronic Health Record Agent
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#---------------------------------------------------------------------------
+
+set timeout 100
+set logfile [lindex $argv 0]
+set FileManNo [lindex $argv 1]
+log_file -noappend $logfile
+spawn gtm
+expect "GTM>"
+send "S DUZ=1 D Q^DI\r"
+expect "Select OPTION:"
+# data dictionary utilities
+send "8\n" 
+expect "Select DATA DICTIONARY UTILITY OPTION:"
+send "1\n"
+expect "START WITH WHAT FILE:"
+send "$FileManNo\n"
+expect "GO TO WHAT FILE:"
+send "$FileManNo\n"
+expect {
+  "Select SUB-FILE:" {
+    send "\n"
+    exp_continue
+  }
+ "Select LISTING FORMAT:" {
+# brief format 2, condensed 7, standard 1
+    send "7\n"
+  }
+}
+expect {
+  "ALPHABETICALLY BY LABEL?" {
+    send "No\n"
+    exp_continue
+  }
+  "Start with field:" {
+    # using default
+    send "\n" 
+    exp_continue
+  }
+  "DEVICE:" {
+    send "HOME;132;999\n"
+  }
+}
+send "\n"
+expect "Select DATA DICTIONARY UTILITY OPTION:"
+send "\n"
+expect "Select OPTION:"
+send "\n"
+expect "GTM>"
+send "HALT\n"
+set ret [exp_wait]
+set exit_status [lindex $ret 3]
+exit $exit_status
