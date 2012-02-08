@@ -1,0 +1,19 @@
+# Testing the expect script with tcl function
+
+# define a proc/command/function to calculate the sum of two arguments
+proc sum {arg1 arg2} {
+  set x [expr {$arg1 + $arg2}];
+  return $x
+}
+
+# get the total len of the argument list
+set len [llength $argv]
+
+if {$len < 2} {
+  puts "must have at least two arguments\n"
+} else {
+  set arg1 [lindex $argv 0]
+  set arg2 [lindex $argv 1]
+  puts "The sum of $arg1 and $arg2 is [sum $arg1 $arg2]\n"
+}
+
