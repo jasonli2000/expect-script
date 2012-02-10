@@ -16,9 +16,11 @@
 import pexpect
 import sys
 
-def installMUnitKIDSbuild(kidsFile, kidsPackageName):
+def createExpectConnection():
   child = pexpect.spawn("gtm")
   assert child.isalive()
+  return child
+def installMUnitKIDSbuild(child, kidsFile, kidsPackageName):
   child.logfile = sys.stdout
   child.expect("[A-Za-z0-9]+>")
   child.sendline("S DUZ=1 D ^XUP")
@@ -76,5 +78,6 @@ def installMUnitKIDSbuild(kidsFile, kidsPackageName):
     child.sendline("YES")
 
 if __name__ == '__main__':
-  installMUnitKIDSbuild("/home/softhat/temp/XT_7-3_81_TESTVER9.KID",
+  expectConn = createExpectConnection()
+  installMUnitKIDSbuild(expectConn, "/home/softhat/temp/XT_7-3_81_TESTVER9.KID",
                         "XT*7.3*81")
