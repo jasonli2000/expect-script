@@ -20,15 +20,23 @@ def createExpectConnection():
   child = pexpect.spawn("gtm")
   assert child.isalive()
   return child
-def installMUnitKIDSbuild(child, kidsFile, kidsPackageName):
+def createExpectConnectionCacheLinux():
+  child = pexpect.spawn("ccontrol session cache")
+  assert child
   child.logfile = sys.stdout
+  child.expect("Username:")
+  child.send("admin\r")
+  child.expect("Password:")
+  child.send("cache\r")
+  return child
+
+def installMUnitKIDSbuild(child, kidsFile, kidsPackageName):
   child.expect("[A-Za-z0-9]+>")
   child.sendline("S DUZ=1 D ^XUP")
   child.expect("Select OPTION NAME:")
-  child.sendline("EVE")
-
+  child.send("EVE\r")
   child.expect("CHOOSE 1-")
-  child.sendline("1")
+  child.send("1\r")
   child.expect("Select Systems Manager Menu Option: ")
   child.sendline("Programmer Options")
   child.expect("Select Programmer Options Option: ")
@@ -78,6 +86,20 @@ def installMUnitKIDSbuild(child, kidsFile, kidsPackageName):
     child.sendline("YES")
 
 if __name__ == '__main__':
-  expectConn = createExpectConnection()
-  installMUnitKIDSbuild(expectConn, "/home/softhat/temp/XT_7-3_81_TESTVER9.KID",
-                        "XT*7.3*81")
+  print ("sys.argv is %s" % sys.argv)
+  if len(sys.argv) <= 1:
+    print ("Need at least two arguments")
+    sys.exit()
+  expectConn = None
+  if len(sys.argv) > 2:
+    system = int(sys.argv[1])
+    if system == 1:
+      expectConn = createExpectConnection()
+    elif system == 2:
+      expectConn = createExpectConnectionCacheLinux()
+    elif system == 3:
+      expectConn = createExpectConnection()
+    else:
+      sys.exit()
+  installMUnitKIDSbuild(expectConn, sys.argv[2],
+                        sys.argv[3])
