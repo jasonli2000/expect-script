@@ -23,44 +23,44 @@ expect "GTM>"
 send "S DUZ=1 D Q^DI\r"
 expect "Select OPTION:"
 # data dictionary utilities
-send "8\n" 
+send "8\r" 
 expect "Select DATA DICTIONARY UTILITY OPTION:"
-send "1\n"
+send "1\r"
 expect "START WITH WHAT FILE:"
-send "$FileManNo\n"
+send "$FileManNo\r"
 expect "GO TO WHAT FILE:"
-send "$FileManNo\n"
+send "$FileManNo\r"
 expect {
   "Select SUB-FILE:" {
-    send "\n"
+    send "\r"
     exp_continue
   }
  "Select LISTING FORMAT:" {
 # brief format 2, condensed 7, standard 1
-    send "7\n"
+    send "7\r"
   }
 }
 expect {
   "ALPHABETICALLY BY LABEL?" {
-    send "No\n"
+    send "No\r"
     exp_continue
   }
   "Start with field:" {
     # using default
-    send "\n" 
+    send "\r" 
     exp_continue
   }
   "DEVICE:" {
-    send "HOME;132;999\n"
+    send "HOME;132;999\r"
   }
 }
-send "\n"
+send "\r"
 expect "Select DATA DICTIONARY UTILITY OPTION:"
-send "\n"
+send "\r"
 expect "Select OPTION:"
-send "\n"
+send "\r"
 expect "GTM>"
-send "HALT\n"
+send "HALT\r"
 set ret [exp_wait]
 set exit_status [lindex $ret 3]
 exit $exit_status
