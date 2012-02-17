@@ -13,69 +13,79 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import pexpect
+from winpexpect import winspawn, TIMEOUT, EOF, ExceptionPexpect
 import sys
 
 def createExpectConnection():
-  child = pexpect.spawn("gtm")
+
+  child = winspawn("C:/users/jason.li/Downloads/apps/plink.exe -telnet 127.0.0.1 -P 23")
+  #child = winspawn("C:/InterSystems/TryCache/bin/cterm /console=cn_iptcp:127.0.0.1[23]")
+  #child = pexpect.spawn("gtm")
   assert child.isalive()
+  child.expect("[A-Za-z0-9]+>")
+  child.send("znspace \"VISTA\"\r")
   return child
 def installMUnitKIDSbuild(child, kidsFile, kidsPackageName):
-  child.logfile = sys.stdout
-  child.expect("[A-Za-z0-9]+>")
-  child.sendline("S DUZ=1 D ^XUP")
-  child.expect("Select OPTION NAME:")
-  child.sendline("EVE")
+  try:
+    #child.logfile = open("c:/Temp/KidsInstallation.log", "wb")
+    child.logfile = sys.stdout
+    child.expect("[A-Za-z0-9]+>")
+    child.send("S DUZ=1 D ^XUP\r")
+    child.expect("Select OPTION NAME: ")
+    child.send("EVE\r")
+    child.expect("CHOOSE 1-")
+    child.send("1\r")
+    child.expect("Select Systems Manager Menu Option: ")
+    child.send("Programmer Options\r")
+    child.expect("Select Programmer Options Option: ")
+    child.send("KIDS\r")
+    child.expect("Select Kernel Installation & Distribution System Option: ")
+    child.send("Installation\r")
+    child.expect("Select Installation Option: ")
+    child.send("1\r")
+    child.expect("Enter a Host File:")
+    child.send(kidsFile+"\r")
+    while True:
+      index = child.expect(["OK to continue with Load",
+                            "Want to Continue with Load?",
+                            "Select Installation Option:"])
+      if index == 0:
+        child.send("YES\r")
+        continue
+      elif index == 1:
+        child.send("YES\r")
+        continue
+      else:
+        child.send("Install\r")
+        break
 
-  child.expect("CHOOSE 1-")
-  child.sendline("1")
-  child.expect("Select Systems Manager Menu Option: ")
-  child.sendline("Programmer Options")
-  child.expect("Select Programmer Options Option: ")
-  child.sendline("KIDS")
-  child.expect("Select Kernel Installation & Distribution System Option: ")
-  child.sendline("Installation")
-  child.expect("Select Installation Option: ")
-  child.sendline("1")
-  child.expect("Enter a Host File:")
-  child.sendline(kidsFile)
-  while True:
-    index = child.expect(["OK to continue with Load",
-                          "Want to Continue with Load?",
-                          "Select Installation Option:"])
+    child.expect("Select INSTALL NAME:")
+    child.send(kidsPackageName+"\r")
+    child.expect("Want KIDS to Rebuild Menu Trees Upon Completion of Install?")
+    child.send("NO\r")
+    child.expect("Want KIDS to INHIBIT LOGONs during the install?")
+    child.send("NO\r")
+    child.expect("Want to DISABLE Scheduled Options, Menu Options, and Protocols?")
+    child.send("NO\r")
+    child.expect("DEVICE:")
+    child.send("HOME;82;999\r")
+    child.expect("Select Installation Option:")
+    child.send("\r")
+    child.expect("Select Kernel Installation & Distribution System Option:")
+    child.send("\r")
+    child.expect("Select Programmer Options Option:")
+    child.send("\r")
+    child.expect("Select Systems Manager Menu Option:")
+    child.send("\r")
+    index = child.expect(["[A-Za-z0-9]+>", "Do you really want to halt?"])
     if index == 0:
-      child.sendline("YES")
-      continue
+      child.send("HALT\r")
     elif index == 1:
-      child.sendline("YES")
-      continue
-    else:
-      child.sendline("Install")
-      break
-
-  child.expect("Select INSTALL NAME:")
-  child.sendline(kidsPackageName)
-  child.expect("Want KIDS to Rebuild Menu Trees Upon Completion of Install?")
-  child.sendline("NO")
-  child.expect("Want KIDS to INHIBIT LOGONs during the install?")
-  child.sendline("NO")
-  child.expect("Want to DISABLE Scheduled Options, Menu Options, and Protocols?")
-  child.sendline("NO")
-  child.expect("DEVICE:")
-  child.sendline("HOME;82;999")
-  child.expect("Select Installation Option:")
-  child.sendline()
-  child.expect("Select Kernel Installation & Distribution System Option:")
-  child.sendline()
-  child.expect("Select Programmer Options Option:")
-  child.sendline()
-  child.expect("Select Systems Manager Menu Option:")
-  child.sendline()
-  index = child.expect(["[A-Za-z0-9]+>", "Do you really want to halt?"])
-  if index == 0:
-    child.sendline("HALT")
-  elif index == 1:
-    child.sendline("YES")
+      child.send("YES\r")
+    if not child.isalive():
+      child.terminate()
+  except TIMEOUT:
+    child.terminate()
 
 if __name__ == '__main__':
   expectConn = createExpectConnection()
