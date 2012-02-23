@@ -12,33 +12,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 try:
   from winpexpect import winspawn, TIMEOUT, EOF, ExceptionPexpect
 except ImportError:
   import pexpect
   pass
 import sys
-
-def createExpectConnectionGTMLinux():
-  child = pexpect.spawn("gtm")
-  assert child.isalive()
-  return child
-def createExpectConnection():
-
-  child = winspawn("C:/users/jason.li/Downloads/apps/plink.exe -telnet 127.0.0.1 -P 23")
-  assert child.isalive()
-  child.expect("[A-Za-z0-9]+>")
-  child.send("znspace \"VISTA\"\r")
-  return child
-def createExpectConnectionCacheLinux():
-  child = pexpect.spawn("ccontrol session cache")
-  assert child
-  child.logfile = sys.stdout
-  child.expect("Username:")
-  child.send("admin\r")
-  child.expect("Password:")
-  child.send("cache\r")
-  return child
+from CreateConnection import createExpectConnection
 
 def AppointmentCardXindex(child, logFileName):
   try:
@@ -89,13 +70,8 @@ if __name__ == '__main__':
   expectConn = None
   if len(sys.argv) > 2:
     system = int(sys.argv[1])
-    if system == 1:
-      expectConn = createExpectConnection()
-    elif system == 2:
-      expectConn = createExpectConnectionCacheLinux()
-    elif system == 3:
-      expectConn = createExpectConnectionGTMLinux()
-    else:
-      sys.exit()
+    expectConn = createExpectConnection(system)
+  if not expectConn:
+    sys.exit(-1)
   AppointmentCardXindex(expectConn, sys.argv[2])
                         

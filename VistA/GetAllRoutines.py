@@ -13,22 +13,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #---------------------------------------------------------------------------
-
-import pexpect
+try:
+  from winpexpect import winspawn, TIMEOUT, EOF, ExceptionPexpect
+except ImportError:
+  import pexpect
+  pass
 import sys
-
-def createExpectConnection():
-  child = pexpect.spawn("gtm")
-  assert child.isalive()
-  return child
-def createExpectConnectionCacheLinux():
-  child = pexpect.spawn("ccontrol session cache")
-  assert child
-  child.expect("Username:")
-  child.send("admin\r")
-  child.expect("Password:")
-  child.send("cache\r")
-  return child
+from CreateConnection import createExpectConnection
 
 def GetAllRoutines(child, outputFile):
   child.logfile = open(outputFile,'wb')
@@ -72,12 +63,7 @@ if __name__ == '__main__':
   expectConn = None
   if len(sys.argv) > 2:
     system = int(sys.argv[1])
-    if system == 1:
-      expectConn = createExpectConnection()
-    elif system == 2:
-      expectConn = createExpectConnectionCacheLinux()
-    elif system == 3:
-      expectConn = createExpectConnection()
-    else:
-      sys.exit()
+    expectConn = createExpectConnection(system)
+  if not expectConn:
+    sys.exit(-1)
   GetAllRoutines(expectConn, sys.argv[2])
