@@ -14,10 +14,15 @@
 # limitations under the License.
 #---------------------------------------------------------------------------
 
-import pexpect
+
+try:
+  from winpexpect import winspawn, TIMEOUT, EOF, ExceptionPexpect
+except ImportError:
+  import pexpect
+  pass
 import sys
 
-def createExpectConnection():
+def createExpectConnectionGTMLinux():
   child = pexpect.spawn("gtm")
   assert child.isalive()
   return child
@@ -28,6 +33,12 @@ def createExpectConnectionCacheLinux():
   child.send("admin\r")
   child.expect("Password:")
   child.send("cache\r")
+  return child
+def createExpectConnection():
+  child = winspawn("C:/users/jason.li/Downloads/apps/plink.exe -telnet 127.0.0.1 -P 23")
+  assert child.isalive()
+  child.expect("[A-Za-z0-9]+>")
+  child.send("znspace \"VISTA\"\r")
   return child
 
 def listFileManFileAttributes(child, FileManNo, outputFile):
@@ -89,7 +100,7 @@ if __name__ == '__main__':
     elif system == 2:
       expectConn = createExpectConnectionCacheLinux()
     elif system == 3:
-      expectConn = createExpectConnection()
+      expectConn = createExpectConnectionGTMLinux()
     else:
       sys.exit()
   listFileManFileAttributes(expectConn, sys.argv[2],
