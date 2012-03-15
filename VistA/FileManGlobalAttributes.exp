@@ -37,7 +37,7 @@ expect {
   }
  "Select LISTING FORMAT:" {
 # brief format 2, condensed 7, standard 1
-    send "7\r"
+    send "1\r"
   }
 }
 expect {

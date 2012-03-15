@@ -13,12 +13,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #---------------------------------------------------------------------------
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 try:
   from winpexpect import winspawn, TIMEOUT, EOF, ExceptionPexpect
 except ImportError:
   import pexpect
   pass
-import sys
 from CreateConnection import createExpectConnection
 
 def listFileManFileAttributes(child, FileManNo, outputFile):
