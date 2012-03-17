@@ -38,15 +38,19 @@ class GetFileManSchemaLogEvent(IEvent):
                               os.path.join(self._logDir, self._fileManFile + ".log"))
     
   def __expr__(self):
-    return "GetFileManSchemaLogEvent: %s" % fileManFile
+    return "GetFileManSchemaLogEvent: %s" % self._fileManFile
   def __str__(self):
     return self.__expr__()
 
 def main():
-  pool = ThreadPool(2)
-  fileManList = ["200","2100","9.4","165.5"]
+  allfilemanfile = open("/home/softhat/git/expect-script/VistA/allfilemanfiles", "rb")
+  assert(allfilemanfile)
+  pool = ThreadPool(5)
+#  fileManList = ["200","2100","9.4","165.5",".2", "2", "130","63","450",
+#                 "55","6925", "509850.9", "45", "604", "9002313.02",
+#                 "52","2260", "139.5", "115"]
   system = 3
-  for item in fileManList:
+  for item in allfilemanfile:
     pool.addEvent(GetFileManSchemaLogEvent(system, item, "/home/softhat/git/expect-script/VistA/output/logs/"))
   pool.stop()
 if __name__ == '__main__':

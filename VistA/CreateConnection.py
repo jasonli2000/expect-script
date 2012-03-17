@@ -16,21 +16,26 @@ try:
   from winpexpect import winspawn, TIMEOUT, EOF, ExceptionPexpect
 except ImportError:
   import pexpect
+  from pexpect import TIMEOUT, EOF, ExceptionPexpect
   pass
 import sys
 
+DEFAULT_TIME_OUT_VALUE = 1500
 def createExpectConnectionGTMLinux():
-  child = pexpect.spawn("gtm")
+  child = pexpect.spawn("gtm", 
+                        timeout = DEFAULT_TIME_OUT_VALUE)
   assert child.isalive()
   return child
 def createExpectConnectionWindows():
-  child = winspawn("C:/users/jason.li/Downloads/apps/plink.exe -telnet 127.0.0.1 -P 23")
+  child = winspawn("C:/users/jason.li/Downloads/apps/plink.exe -telnet 127.0.0.1 -P 23",
+                    timeout = DEFAULT_TIME_OUT_VALUE)
   assert child.isalive()
   child.expect("[A-Za-z0-9]+>")
   child.send("znspace \"VISTA\"\r")
   return child
 def createExpectConnectionCacheLinux():
-  child = pexpect.spawn("ccontrol session cache")
+  child = pexpect.spawn("ccontrol session cache", 
+                        timeout =  DEFAULT_TIME_OUT_VALUE)
   assert child
   child.logfile = sys.stdout
   child.expect("Username:")

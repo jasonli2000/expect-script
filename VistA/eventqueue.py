@@ -26,6 +26,7 @@ class Worker(Thread):
         while not self._stop:
             try:
               event = self.queue.get(True, 2)
+              print "%s : processing event %s" % (self.name, event)
               event.dispatch()
             except Empty: continue # do not call task_done if no event in the queue
             except Exception, e: print e
