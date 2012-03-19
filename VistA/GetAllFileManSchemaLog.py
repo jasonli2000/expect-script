@@ -62,7 +62,7 @@ def runTaskInThreadPool(numTheads, fileManList, system, logDir):
     index = index + 1
     if (index % DEFAULT_THROTTLE_NUMBER) == 0:
       print ("total file %d processed, sleeping for %d seconds......" % (index, DEFAULT_SLEEP_SECONDS))
-      sleep(DEFAULT_THROTTLE_NUMBER)
+      sleep(DEFAULT_SLEEP_SECONDS)
   threadPool.stop()
 
 def main(inputFile, system, numberThreads, logDir):
