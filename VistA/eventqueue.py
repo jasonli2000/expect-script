@@ -49,7 +49,9 @@ class ThreadPool:
     def stop(self):
         """Wait for completion of all the tasks in the queue"""
         self.queue.join()
+        print ("task queue is now empty")
         for thd in self._allthreads:
+          print ("Joining thread %s" % thd.name)
           thd.stop()
           thd.join()
 

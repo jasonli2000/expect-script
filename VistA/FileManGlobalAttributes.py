@@ -20,14 +20,18 @@ try:
   from winpexpect import winspawn, TIMEOUT, EOF, ExceptionPexpect
 except ImportError:
   import pexpect
+  from pexpect import TIMEOUT, EOF, ExceptionPexpect
   pass
 from CreateConnection import createExpectConnection
+from random import randint
 
 def listFileManFileAttributes(child, FileManNo, outputFile):
   try:
     child.logfile = open(outputFile,'wb')
     child.expect("[A-Za-z0-9]+>")
-    child.send("S DUZ=1 D Q^DI\r")
+    # change the DUZ everytime
+    duz = randint(1,100000)
+    child.send("S DUZ=%d D Q^DI\r" % duz)
     child.expect("Select OPTION:")
     # data dictionary utilities
     child.send("8\r" )

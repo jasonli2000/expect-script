@@ -20,7 +20,7 @@ except ImportError:
   pass
 import sys
 
-DEFAULT_TIME_OUT_VALUE = 1500
+DEFAULT_TIME_OUT_VALUE = 300
 def createExpectConnectionGTMLinux():
   child = pexpect.spawn("gtm", 
                         timeout = DEFAULT_TIME_OUT_VALUE)

@@ -24,6 +24,7 @@ except ImportError:
 from CreateConnection import createExpectConnection
 from eventqueue import IEvent, ThreadPool
 import FileManGlobalAttributes
+from time import sleep
 
 class GetFileManSchemaLogEvent(IEvent):
   def __init__(self, system, fileManFile, logDir):
@@ -36,7 +37,6 @@ class GetFileManSchemaLogEvent(IEvent):
       return
     FileManGlobalAttributes.listFileManFileAttributes(expectConn, self._fileManFile,
                               os.path.join(self._logDir, self._fileManFile + ".log"))
-    
   def __expr__(self):
     return "GetFileManSchemaLogEvent: %s" % self._fileManFile
   def __str__(self):
@@ -45,13 +45,21 @@ class GetFileManSchemaLogEvent(IEvent):
 def main():
   allfilemanfile = open("/home/softhat/git/expect-script/VistA/allfilemanfiles", "rb")
   assert(allfilemanfile)
-  pool = ThreadPool(5)
-#  fileManList = ["200","2100","9.4","165.5",".2", "2", "130","63","450",
-#                 "55","6925", "509850.9", "45", "604", "9002313.02",
-#                 "52","2260", "139.5", "115"]
+  pool = ThreadPool(10)
+#  allfilemanfile = ["200","2100","9.4","165.5",".2", "2", "130","63","450",
+#                    "55","6925", "509850.9", "45", "604", "9002313.02",
+#                    "52","2260", "139.5", "115", ".11", ".31"]
   system = 3
+  throttle = 100
+  index = 0
   for item in allfilemanfile:
+    item = item.strip()
+    #print "Adding %s to the queue" % item
     pool.addEvent(GetFileManSchemaLogEvent(system, item, "/home/softhat/git/expect-script/VistA/output/logs/"))
+    index = index + 1
+    if (index % throttle) == 0:
+      print ("total file %d processed, sleeping for 1 seconds......" % index)
+      sleep(1)
   pool.stop()
 if __name__ == '__main__':
   main()
