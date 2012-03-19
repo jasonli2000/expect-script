@@ -43,19 +43,19 @@ class GetFileManSchemaLogEvent(IEvent):
     return self.__expr__()
 
 def main():
-  allfilemanfile = open("/home/softhat/git/expect-script/VistA/allfilemanfiles", "rb")
+  allfilemanfile = open("c:/users/jason.li/git/expect-script/VistA/allfilemanfiles", "rb")
   assert(allfilemanfile)
   pool = ThreadPool(10)
 #  allfilemanfile = ["200","2100","9.4","165.5",".2", "2", "130","63","450",
 #                    "55","6925", "509850.9", "45", "604", "9002313.02",
 #                    "52","2260", "139.5", "115", ".11", ".31"]
-  system = 3
-  throttle = 100
+  system = 1
+  throttle = 20
   index = 0
   for item in allfilemanfile:
     item = item.strip()
-    #print "Adding %s to the queue" % item
-    pool.addEvent(GetFileManSchemaLogEvent(system, item, "/home/softhat/git/expect-script/VistA/output/logs/"))
+    print ("Adding %s to the queue" % item)
+    pool.addEvent(GetFileManSchemaLogEvent(system, item, "c:/users/jason.li/git/expect-script/VistA/output/logs/"))
     index = index + 1
     if (index % throttle) == 0:
       print ("total file %d processed, sleeping for 1 seconds......" % index)

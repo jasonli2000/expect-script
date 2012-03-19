@@ -53,7 +53,10 @@ class ThreadPool:
         for thd in self._allthreads:
           print ("Joining thread %s" % thd.name)
           thd.stop()
-          thd.join()
+          if thd.isAlive():
+            thd.join(10)
+          if thd.isAlive():
+            print ("Joining thread %s failed" % thd.name)
 
 class DummyEvent(IEvent):
   def __init__(self, seconds):

@@ -66,8 +66,16 @@ def listFileManFileAttributes(child, FileManNo, outputFile):
         child.send("HOME;387;9999\r")
         break
     child.send("\r")
-    child.expect("Select DATA DICTIONARY UTILITY OPTION:")
-    child.send("\r")
+    while True:
+      index = child.expect(["Select DATA DICTIONARY UTILITY OPTION:",
+                            "FORM\(S\)\/BLOCK\(S\):",
+                            "\a"])
+      if index == 0:
+        child.send("\r")
+        break
+      if index == 1 or index == 2:
+        child.send("\r")
+        continue
     child.expect("Select OPTION:")
     child.send("\r")
     child.expect("[A-Za-z0-9]+>")
