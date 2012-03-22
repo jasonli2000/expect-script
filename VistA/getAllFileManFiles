@@ -1,1 +1,9 @@
 git ls-files -- "*.zwr" | sed -n "s/.*\/\([0-9][0-9.]\{1,\}\)\(-1\)\{0,1\}+[A-Z ]\{1,\}.zwr/\1/p" | sort -n
+# similiar to basename to get all zwr file name
+git ls-files -- "*.zwr" | sed -n 's#.*\/\([^\/]\{1,\}\.zwr$\)#\1#p'
+# to get all fileman # plus the split files
+git ls-files -- "*.zwr" | sed -n 's#.*\/\([^\/]\{1,\}\.zwr$\)#\1#p' | sed -n 's#\(.*\)+.*#\1#p'
+# get all fileman file without the split file
+git ls-files -- "*.zwr" | sed -n 's#.*\/\([^\/]\{1,\}\.zwr$\)#\1#p' | sed -n 's#\(.*\)+.*#\1#p' | grep -v '\-[2-90]' 
+# get all fileman file final
+git ls-files -- "*.zwr" | sed -n 's#.*\/\([^\/]\{1,\}\.zwr$\)#\1#p' | sed -n 's#\(.*\)+.*#\1#p' | grep -v '\-[2-90]' | sed 's#^0\(\..*\)#\1#' | sed 's#\(.*\)-1$#\1#' | sort -nu
