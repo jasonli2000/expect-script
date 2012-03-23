@@ -1,5 +1,5 @@
 #---------------------------------------------------------------------------
-# Copyright 2011-2012 The Open Source Electronic Health Record Agent
+# Copyright 2011 The Open Source Electronic Health Record Agent
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #---------------------------------------------------------------------------
+
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -24,7 +25,7 @@ except ImportError:
   pass
 from CreateConnection import createExpectConnection
 
-def GetAllRoutines(child, outputFile):
+def GetAllRPCInfo(child, outputFile):
   try:
     child.logfile = open(outputFile,'wb')
     child.expect("[A-Za-z0-9]+>")
@@ -33,7 +34,7 @@ def GetAllRoutines(child, outputFile):
     # print file entry
     child.send("2\r" )
     child.expect("OUTPUT FROM WHAT FILE:")
-    child.send("ROUTINE\r") # fileman file #9.8
+    child.send("REMOTE PROCEDURE\r") # fileman file #8994
     child.expect("SORT BY:")
     child.send("NAME\r")
     child.expect("START WITH")
@@ -48,8 +49,12 @@ def GetAllRoutines(child, outputFile):
         child.send("\r")
         continue
     child.expect("THEN PRINT FIELD:")
+    child.send("ROUTINE\r")
+    child.expect("THEN PRINT FIELD:")
+    child.send("TAG\r")
+    child.expect("THEN PRINT FIELD:")
     child.send("\r")
-    child.expect("ROUTINE LIST//")
+    child.expect("REMOTE PROCEDURE LIST")
     child.send("\r")
     child.expect("DEVICE:")
     child.send(";132;99999\r")
@@ -78,4 +83,4 @@ if __name__ == '__main__':
     expectConn = createExpectConnection(system)
   if not expectConn:
     sys.exit(-1)
-  GetAllRoutines(expectConn, sys.argv[2])
+  GetAllRPCInfo(expectConn, sys.argv[2])
