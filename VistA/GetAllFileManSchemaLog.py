@@ -88,9 +88,7 @@ if __name__ == '__main__':
   parser.add_argument('-test', required=False, dest='isTest', default=False, action='store_true',
                       help='is this the test run')
   result = vars(parser.parse_args());
-  
   print (result)
-  
   system = int(result['system'])
   numOfThreads = DEFAULT_NUM_THREADS
   if result['numOfThreads']:

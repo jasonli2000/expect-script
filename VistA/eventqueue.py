@@ -25,11 +25,13 @@ class Worker(Thread):
     def run(self):
         while not self._stop:
             try:
-              event = self.queue.get(True, 2)
+              event = self.queue.get(True, 1) # set to be block call and also timeout value set to 1 second
               print "%s : processing event %s" % (self.name, event)
               event.dispatch()
-            except Empty: continue # do not call task_done if no event in the queue
-            except Exception, e: print e
+            except Empty: 
+              continue # do not call task_done if no event in the queue
+            except Exception, e:
+              print e
             self.queue.task_done()
     def stop(self):
       self._stop = True
@@ -54,7 +56,7 @@ class ThreadPool:
           print ("Joining thread %s" % thd.name)
           thd.stop()
           if thd.isAlive():
-            thd.join(10)
+            thd.join(10) # max wait time is 10 seconds
           if thd.isAlive():
             print ("Joining thread %s failed" % thd.name)
 
