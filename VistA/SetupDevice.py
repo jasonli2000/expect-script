@@ -30,7 +30,7 @@ class SetupDevice:
     self._HFS = None
     self._Term =None
     self._NullDevice = None
-    self._system = None
+    self._system = system
     self._logFile = logFile
     self._connection = connection
     self.__setupSystemDependentParameter__()
