@@ -48,7 +48,7 @@ class SetupDevice:
       connection.logfile = open(self._logFile, 'wb')
       if (self._HFS):
         self.__initHFSDevice__()
-      if (self._Term): 
+      if (self._Term):
         self.__initTerminalDevice_()
       if (self._NullDevice):
         self.__initNullDevice__()
@@ -79,6 +79,8 @@ class SetupDevice:
     connection.expect("THEN EDIT FIELD:")
     connection.send("SIGN-ON/SYSTEM DEVICE\r")
     connection.expect("THEN EDIT FIELD:")
+    connection.send("LOCATION OF TERMINAL:\r")
+    connection.expect("THEN EDIT FIELD:")
     connection.send("\r")
     connection.expect("Select DEVICE NAME:")
     connection.send("NULL\r")
@@ -88,6 +90,8 @@ class SetupDevice:
     connection.send(self._NullDevice + "\r")
     connection.expect("SIGN-ON\/SYSTEM DEVICE")
     connection.send("NO\r")
+    connection.expect("LOCATION OF TERMINAL:")
+    connection.send("Bit Bucket (GT.M-Unix)\r")
     connection.expect("Select DEVICE NAME:")
     connection.send("^\r")
     connection.expect("Select OPTION:")
