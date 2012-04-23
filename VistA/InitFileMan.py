@@ -43,11 +43,17 @@ def initFileMan(connection, logFile, siteName, siteNumber,
     connection.expect("Initialize VA FileMan now?")
     connection.send("YES\r")
     connection.expect("SITE NAME:")
-    connection.send(siteName+"\r")
+    if siteName and len(siteName) > 0:
+      connection.send(siteName+"\r")
+    else:
+      connection.send("\r") # just use the default
     connection.expect("SITE NUMBER")
-    connection.send(str(siteNumber)+"\r")
+    if siteNumber and siteNumber != 0:
+      connection.send(str(siteNumber)+"\r")
+    else:
+      connection.send("\r")
     connection.expect("Do you want to change the MUMPS OPERATING SYSTEM File?")
-    connection.send("NO\r")
+    connection.send("YES\r") # we want to change MUMPS OPERATING SYSTEM File
     connection.expect("TYPE OF MUMPS SYSTEM YOU ARE USING:")
     inputMumpsSystem(connection, system)
     connection.expect("[A-Za-z0-9]+>")
