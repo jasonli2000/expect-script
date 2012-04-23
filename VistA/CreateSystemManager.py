@@ -80,6 +80,8 @@ class AddSystemManager:
     connection.expect("EDIT WHICH CPRS TAB SUB-FIELD:")
     connection.send(".01\r") # CPRS TAB
     connection.expect("THEN EDIT CPRS TAB SUB-FIELD:")
+    connection.send(".02\r") # CPRS TAB EFFECTIVE DATE
+    connection.expect("THEN EDIT CPRS TAB SUB-FIELD:")
     connection.send("\r")
     connection.expect("THEN EDIT FIELD:")
     connection.send("PRIMARY MENU OPTION\r")
@@ -147,6 +149,8 @@ class AddSystemManager:
       elif index == 2:
         connection.send("\r")
         break
+    connection.expect("EFFECTIVE DATE:")
+    connection.send("T\r") # effective today
     connection.expect("Select CPRS TAB:")
     connection.send("\r")
     # handle primary and secondary menu options
@@ -196,7 +200,7 @@ class AddSystemManager:
       elif index == 3:
         connection.send("\r")
         break
-    # handle access and verify code section    
+    # handle access and verify code section
     connection.expect("Want to edit ACCESS CODE")
     connection.send("YES\r")
     connection.expect("Enter a new ACCESS CODE")
@@ -280,7 +284,6 @@ class AddSystemManager:
     connection.send("\r")
     connection.expect("Do you really want to halt\?")
     connection.send("YES\r")
-    
   def __findoutSystemManagerDuz__(self):
     connection = self._connection
     connection.expect("[A-Za-z0-9]+>")
