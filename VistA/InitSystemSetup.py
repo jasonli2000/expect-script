@@ -27,12 +27,12 @@ import InitFileMan
 from CreateConnection import createExpectConnection
 from CreateNewDomain import CreateNewDomain
 from SetupVolumeSet import SetupVolumeSet
-import StartTaskMan 
+import StartTaskMan
 from SetupDevice import SetupDevice
 from CreateSystemManager import AddSystemManager
 
 class InitSystemSetup:
-  def __init__(configFile):
+  def __init__(self, configFile):
     self._configFile = configFile
     self._configParser = ConfigParser.RawConfigParser(allow_no_value=True)
     self._logDir = None
@@ -47,8 +47,10 @@ class InitSystemSetup:
     if not config.has_section("MAIN"):
       raise ConfigParser.NoSectionError("MAIN")
     # this will raise an exception if option system or logdir does not exit
-    self._system = self.get("MAIN","system")
-    self._logDir = self.get("MAIN","logdir")
+    self._system = config.get("MAIN","system")
+    print ("system is %s" % self._system)
+    self._logDir = config.get("MAIN","logdir")
+    print ("logDir is %s" % self._logDir)
     self.__convertSystemToNumber__()
     # found out the domain name and also the volume set box value
     if not config.has_section("SITE INFO"):
@@ -69,15 +71,14 @@ class InitSystemSetup:
   def __convertSystemToNumber__(self):
     if self._system == "GTM/Linux":
       self._system = 3
-    elif self._system == "Cache/Windows"
+    elif self._system == "Cache/Windows":
       self._system = 1
-    elif self._system == "Cache/Linux"
+    elif self._system == "Cache/Linux":
       self._system = 2
     else:
-      raise "Invalid System"
+      raise Exception("Invalid System %s" % self._system)
   def __createConnection__(self):
     return createExpectConnection(self._system)
-    
   def run(self):
     self.__parseConfigFile__()
     self.__initFileMan__()
@@ -104,7 +105,7 @@ class InitSystemSetup:
           pass
     # create connection
     connection = self.__createConnection__()
-    InitFileMan.initFileMan(connection, 
+    InitFileMan.initFileMan(connection,
                             os.path.join(self._logDir,"InitFileMan.log"),
                             siteName,
                             siteNumber,
@@ -116,8 +117,10 @@ class InitSystemSetup:
     createNewDomain = CreateNewDomain(self._system,
                                       connection,
                                       self._domainName,
-                                      os.path.join(self._logdir, "CreateNewDomain.log"))
-    createNewDomain.run()                                                  
+                                      os.path.join(self._logDir, "CreateNewDomain.log"))
+
+    print ("Creating new domain %s" % (self._domainName))
+    createNewDomain.run()
   def __setupVolumeSet__(self):
     connection = self.__createConnection__()
     setupVolumeSet = SetupVolumeSet(self._system,
@@ -125,8 +128,9 @@ class InitSystemSetup:
                                     self._volumeSet,
                                     self._boxValue,
                                     self._domainName,
-                                    os.path.join(self._logdir, "SetupVolumeSet.log"))
-    pass
+                                    os.path.join(self._logDir, "SetupVolumeSet.log"))
+    print ("Setting up volume set %s:%s" % (self._volumeSet, self._boxValue))
+    setupVolumeSet.run()
   def __setupDevice__(self):
     config = self._configParser
     hfsDev = None
@@ -139,18 +143,19 @@ class InitSystemSetup:
       nullDev = config.get("DEVICE", "null")
     connection = self.__createConnection__()
     setupDevice = SetupDevice(self._system,
-                              os.path.join(self._logdir, "SetupDevice.log"),
+                              os.path.join(self._logDir, "SetupDevice.log"),
                               connection)
     if hfsDev and len(hfsDev) > 0:
       setupDevice.setupHostFileSystem(hfsDev)
     if nullDev and len(nullDev) > 0:
       setupDevice.setupNullDevice(nullDev)
+    print ("Setting Device")
     setupDevice.run()
   def __startTaskMan__(self):
     connection = self.__createConnection__()
-    StartTaskMan.startTaskMan(self._system,
-                              connection,
-                              os.path.join(self._logdir, "StartTaskMan.log"))
+    print ("Starting taskman")
+    StartTaskMan.startTaskMan(connection,
+                              os.path.join(self._logDir, "StartTaskMan.log"))
     pass
   def __createSystemManager__(self):
     config = self._configParser
@@ -163,12 +168,13 @@ class InitSystemSetup:
     connection = self.__createConnection__()
     systemManager = AddSystemManager(self._system,
                                      connection,
-                                     os.path.join(self._logdir, "CreateSystemManager.log"),
+                                     os.path.join(self._logDir, "CreateSystemManager.log"),
                                      name,
                                      initial,
                                      accCode,
                                      veriCode)
-    systemManager.run()                                     
+    print ("Creating System Manager")
+    systemManager.run()
 
 def main(inputFile):
   print ("inputFile is %s" % inputFile)

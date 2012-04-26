@@ -92,8 +92,14 @@ class SetupDevice:
     connection.send("NO\r")
     connection.expect("LOCATION OF TERMINAL:")
     connection.send("Bit Bucket (GT.M-Unix)\r")
-    connection.expect("Select DEVICE NAME:")
-    connection.send("^\r")
+    while True:
+      index = connection.expect(["With", "Select DEVICE NAME:", "Replace"])
+      if index == 0 or index == 2:
+        connection.send("\r")
+        continue
+      else:
+        connection.send("^\r")
+        break
     connection.expect("Select OPTION:")
     connection.send("\r")
 
