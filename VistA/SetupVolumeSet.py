@@ -34,6 +34,7 @@ class SetupVolumeSet:
     self._boxName = boxName
     self._domainName = domainName
     self.__setupSystemDependentParameter__()
+    self._defaultVolSet = None
     self._origBoxVolSet = None
     self._origDomainName = None
   def __setupSystemDependentParameter__(self):
@@ -42,11 +43,16 @@ class SetupVolumeSet:
     connection = self._connection
     try:
       connection.logfile = open(self._logFile, 'wb')
-      self.__setupNewVolumeSet__()
-      self.__findoutTaskManBoxVolumePair__()
-      self.__editTaskManSiteParameter__()
-      self.__findoutRPCDefaultDomainName__()
-      self.__editRCPBrokerSiteParameter__()
+      self.__findoutDefaultVolumeSet__()
+      if self._defaultVolSet != self._volName:
+        self.__setupVolumeSet()
+        # this is to make sure the vol set is the same as the one in
+        # kernel system parameters file 8989.3
+        self.__setKernelSystemParametersVolumeSet__()
+        self.__findoutTaskManBoxVolumePair__()
+        self.__editTaskManSiteParameter__()
+        self.__findoutRPCDefaultDomainName__()
+        self.__editRCPBrokerSiteParameter__()
       self.__exit__()
       connection.terminate()
     except TIMEOUT:
@@ -72,21 +78,21 @@ class SetupVolumeSet:
     connection.expect("[A-Za-z0-9]+>")
     connection.send("HALT\r")
 
-  def __setupNewVolumeSet__(self):
+  def __setupVolumeSet(self):
     self.__gotoEditVolumeSetOption__()
     connection = self._connection
     connection.expect("EDIT WHICH FIELD:")
     connection.send("ALL\r")
     connection.expect("Select VOLUME SET:")
-    connection.send(self._volName + "\r")
+    connection.send(self._defaultVolSet + "\r")
     while True:
       index = connection.expect(["Are you adding \'%s\' as a new VOLUME SET" % self._volName,
                                  "VOLUME SET:"])
       if index == 0:
-        connection.send("YES\r")
+        connection.send("NO\r")
         break
       if index == 1:
-        connection.send("\r")
+        connection.send(self._volName + "\r")
         break
     connection.expect("TYPE: ")
     connection.send("GENERAL PURPOSE VOLUME SET\r")
@@ -111,6 +117,41 @@ class SetupVolumeSet:
     connection.expect("RE-QUEUES BEFORE UN-SCHEDULE:")
     connection.send("\r")
     connection.expect("Select VOLUME SET:")
+    connection.send("\r")
+    connection.expect("Select OPTION:")
+    connection.send("\r")
+
+  def __setKernelSystemParametersVolumeSet__(self):
+    connection = self._connection
+    connection.expect("[A-Za-z0-9]+>")
+    connection.send("S DUZ=1 D P^DI\r")
+    connection.expect("Select OPTION:")
+    connection.send("1\r")
+    connection.expect("INPUT TO WHAT FILE:")
+    connection.send("8989.3\r") # KERNEL SYSTEM PARAMETERS
+    connection.expect("EDIT WHICH FIELD:")
+    connection.send("VOLUME SET\r")
+    connection.expect("EDIT WHICH VOLUME SET SUB-FIELD:")
+    connection.send("VOLUME SET\r")
+    connection.expect("THEN EDIT VOLUME SET SUB-FIELD:")
+    connection.send("MAX SIGNON ALLOWED\r")
+    connection.expect("THEN EDIT VOLUME SET SUB-FIELD:")
+    connection.send("\r")
+    connection.expect("THEN EDIT FIELD:")
+    connection.send("\r")
+    connection.expect("Select KERNEL SYSTEM PARAMETERS DOMAIN NAME:")
+    connection.send(self._domainName + "\r")
+    connection.expect("...OK\?")
+    connection.send("YES\r")
+    connection.expect("Select VOLUME SET:")
+    connection.send("\r")
+    connection.expect("VOLUME SET:")
+    connection.send(self._volName + "\r")
+    connection.expect("MAX SIGNON ALLOWED:")
+    connection.send("\r")
+    connection.expect("Select VOLUME SET:")
+    connection.send("\r")
+    connection.expect("Select KERNEL SYSTEM PARAMETERS DOMAIN NAME:")
     connection.send("\r")
     connection.expect("Select OPTION:")
     connection.send("\r")
@@ -157,10 +198,7 @@ class SetupVolumeSet:
     connection.expect("...OK\?")
     connection.send("YES\r")
     connection.expect("DOMAIN NAME:")
-    if self._domainName and len(self._domainName) > 1:
-      connection.send("%s\r" % (self._domainName))
-    else:
-      connection.send("\r")
+    connection.send("\r")
     connection.expect("MAIL GROUP FOR ALERTS:")
     connection.send("\r")
     connection.expect("Select BOX-VOLUME PAIR:")
@@ -199,6 +237,37 @@ class SetupVolumeSet:
     connection.send("\r")
     connection.expect("Select OPTION:")
     connection.send("\r")
+
+  def __findoutDefaultVolumeSet__(self):
+    connection = self._connection
+    connection.expect("[A-Za-z0-9]+>")
+    connection.send("S DUZ=1 D P^DI\r")
+    connection.expect("Select OPTION:")
+    connection.send("2\r")
+    connection.expect("OUTPUT FROM WHAT FILE:")
+    connection.send("VOLUME SET\r")
+    connection.expect("SORT BY:")
+    connection.send("\r")
+    connection.expect("START WITH VOLUME SET:")
+    connection.send("\r")
+    connection.expect("FIRST PRINT FIELD:")
+    connection.send("VOLUME SET\r")
+    connection.expect("THEN PRINT FIELD:")
+    connection.send("\r")
+    connection.expect("Heading \(S\/C\):")
+    connection.send("\r")
+    connection.expect("DEVICE:")
+    connection.send("\r")
+    connection.expect("VOLUME SET LIST")
+    connection.expect("VOLUME SET")
+    connection.expect("-+")
+    connection.expect("\S+") # \S match any non-whitespace chars
+    print ("before expect: [%s]"  % (connection.before))
+    self._defaultVolSet = connection.after
+    print ("after expect match [%s]"  % (connection.after))
+    connection.expect("Select OPTION:")
+    connection.send("\r")
+
   def __findoutTaskManBoxVolumePair__(self):
     connection = self._connection
     connection.expect("[A-Za-z0-9]+>")
@@ -319,6 +388,35 @@ def findoutRPCDomainName(connection):
   connection.expect("[A-Za-z0-9]+>")
   connection.send("HALT\r")
 
+def findoutDefaultVolumeSet(connection):
+  connection.expect("[A-Za-z0-9]+>")
+  connection.send("S DUZ=1 D P^DI\r")
+  connection.expect("Select OPTION:")
+  connection.send("2\r")
+  connection.expect("OUTPUT FROM WHAT FILE:")
+  connection.send("VOLUME SET\r")
+  connection.expect("SORT BY:")
+  connection.send("\r")
+  connection.expect("START WITH VOLUME SET:")
+  connection.send("\r")
+  connection.expect("FIRST PRINT FIELD:")
+  connection.send("VOLUME SET\r")
+  connection.expect("THEN PRINT FIELD:")
+  connection.send("\r")
+  connection.expect("Heading \(S\/C\):")
+  connection.send("\r")
+  connection.expect("DEVICE:")
+  connection.send("\r")
+  connection.expect("VOLUME SET LIST")
+  connection.expect("VOLUME SET")
+  connection.expect("-+")
+  connection.expect("\S+") # \S match any non-whitespace chars
+  print ("before expect: [%s]"  % (connection.before))
+  print ("after expect match [%s]"  % (connection.after))
+  connection.expect("Select OPTION:")
+  connection.send("\r")
+  connection.expect("[A-Za-z0-9]+>")
+  connection.send("HALT\r")
 def testFindoutTaskManBoxVolumePair():
   expectConn = None
   expectConn = createExpectConnection(3)
@@ -326,9 +424,18 @@ def testFindoutTaskManBoxVolumePair():
     sys.exit(-1)
   #findoutTaskManBoxVolumePair(expectConn)
   findoutRPCDomainName(expectConn)
+def testFindoutDefaultVolumeSet():
+  expectConn = None
+  expectConn = createExpectConnection(3)
+  if not expectConn:
+    sys.exit(-1)
+  #findoutTaskManBoxVolumePair(expectConn)
+  findoutDefaultVolumeSet(expectConn)
 
 if __name__ == '__main__':
   #testFindoutTaskManBoxVolumePair()
+  #sys.exit(0)
+  #testFindoutDefaultVolumeSet()
   #sys.exit(0)
   parser = argparse.ArgumentParser(description='Setup Volume Set')
   parser.add_argument('-V', dest='VolumeSetName',
@@ -349,7 +456,7 @@ if __name__ == '__main__':
   expectConn = createExpectConnection(system)
   if not expectConn:
     sys.exit(-1)
-  volSet = SetupVolumeSet(system, expectConn, 
+  volSet = SetupVolumeSet(system, expectConn,
                           result['VolumeSetName'],
                           result['BoxName'],
                           result['DomainName'],

@@ -25,7 +25,7 @@ except ImportError:
 from CreateConnection import createExpectConnection
 import argparse
 
-# this class will 
+# this class will
 # 1. create a new domain under domain file
 # 2. update kernel site parameter and RPC parameter file
 # 3. reindex the file
@@ -110,7 +110,6 @@ class CreateNewDomain:
     connection.send("FOIA.PLATINUM.VA.GOV\r") # VA as the parent domain
     connection.expect("TIME ZONE:")
     connection.send("EDT\r") # VA as the parent domain
-  
   def __findOutDomainNumber__(self):
     connection = self._connection
     connection.expect("[A-Za-z0-9]+>")
@@ -120,13 +119,13 @@ class CreateNewDomain:
     connection.expect("OUTPUT FROM WHAT FILE:")
     connection.send("DOMAIN\r") # DOMAIN FILE
     connection.expect("Select DOMAIN NAME:")
-    connection.send(self._domain + "\r") 
+    connection.send(self._domain + "\r")
     connection.expect("ANOTHER ONE:")
-    connection.send("\r") 
+    connection.send("\r")
     connection.expect("STANDARD CAPTIONED OUTPUT\?")
-    connection.send("NO\r") 
+    connection.send("NO\r")
     connection.expect("FIRST PRINT FIELD:")
-    connection.send("NUMBER\r") 
+    connection.send("NUMBER\r")
     connection.expect("THEN PRINT FIELD:")
     connection.send("\r")
     connection.expect("Heading \(S\/C\):")
@@ -141,14 +140,12 @@ class CreateNewDomain:
     print ("Domain Number is %s" % connection.after)
     connection.expect("Select OPTION:")
     connection.send("\r")
-  
   def __setupKernelRPCParameterFile__(self):
     connection = self._connection
     connection.expect("[A-Za-z0-9]+>")
     connection.send("S $P(^XTV(8989.3,1,0),\"^\")=%s\r" % self._newDomainNumber.strip())
     connection.expect("[A-Za-z0-9]+>")
     connection.send("S $P(^XWB(8994.1,1,0),\"^\")=%s\r" % self._newDomainNumber.strip())
-  
   def __reindexFile__(self, fileNo):
     connection = self._connection
     connection.expect("[A-Za-z0-9]+>")
@@ -160,11 +157,11 @@ class CreateNewDomain:
     connection.expect("MODIFY WHAT FILE:")
     connection.send(fileNo + "\r")
     connection.expect("DO YOU WISH TO RE-CROSS-REFERENCE ONE PARTICULAR INDEX\?")
-    connection.send("NO\r") 
+    connection.send("NO\r")
     connection.expect("OK, ARE YOU SURE YOU WANT TO KILL OFF THE EXISTING")
-    connection.send("YES\r") 
+    connection.send("YES\r")
     connection.expect("DO YOU THEN WANT TO \'RE-CROSS-REFERENCE\'\?")
-    connection.send("YES\r") 
+    connection.send("YES\r")
     connection.expect("Select UTILITY OPTION:")
     connection.send("\r")
     connection.expect("Select OPTION:")

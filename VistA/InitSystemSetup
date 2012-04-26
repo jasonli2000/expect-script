@@ -1,0 +1,6 @@
+python InitFileMan.py -s "JASON-KITWARE.OSEHRA.ORG" -n 12200 -m 3 -l ~/VistA-FOIA/120611/log/InitFileMan.log
+python CreateNewDomain.py -N "VISTA.KITWAREINC.COM" -m 3 -l ~/VistA-FOIA/120611/log/CreateNewDomain.log
+python SetupVolumeSet.py -V "VAH" -B "VistA" -D "VISTA.KITWAREINC.COM" -m 3 -l ~/VistA-FOIA/120611/log/SetupVolumeSet.log
+python startTaskMan.py -m 3 -l ~/VistA-FOIA/120611/log/startTaskMan.log
+python SetupDevice.py -H "/tmp/hfs.dat" -N "/dev/null" -m 3 -l ~/VistA-FOIA/120611/log/SetupDevice.log
+python CreateSystemManager.py -N "MANAGER,SYSTEM" -I "SM" -A "SYSTEM_MANAGER1" -V "JASON_TEST_0" -m 3 -l ~/VistA-FOIA/120611/log/CreateSystemManager.log
