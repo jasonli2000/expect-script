@@ -37,6 +37,7 @@ class GetFileManSchemaLogEvent(IEvent):
     if not expectConn:
       return
     FileManGlobalAttributes.listFileManFileAttributes(expectConn, self._fileManFile,
+                              os.path.join(self._logDir, self._fileManFile + ".schema"),
                               os.path.join(self._logDir, self._fileManFile + ".log"))
   def __expr__(self):
     return "GetFileManSchemaLogEvent: %s" % self._fileManFile

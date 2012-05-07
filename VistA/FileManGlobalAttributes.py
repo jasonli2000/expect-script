@@ -25,18 +25,19 @@ except ImportError:
 from CreateConnection import createExpectConnection
 from random import randint
 
-def listFileManFileAttributes(child, FileManNo, outputFile):
+def listFileManFileAttributes(child, FileManNo, outputFile, logFile):
   try:
-    child.logfile = open(outputFile,'wb')
+    child.logfile = open(logFile,'wb')
     child.expect("[A-Za-z0-9]+>")
     # change the DUZ everytime
-    duz = randint(1,100000)
+    #duz = randint(1,100000)
+    duz = 1
     child.send("S DUZ=%d D Q^DI\r" % duz)
     child.expect("Select OPTION:")
     # data dictionary utilities
     child.send("8\r" )
     child.expect("Select DATA DICTIONARY UTILITY OPTION:")
-    child.send("1\r")
+    child.send("1\r") # list file attributes
     child.expect("START WITH WHAT FILE:")
     child.send(FileManNo + "\r")
     child.expect("GO TO WHAT FILE:")
@@ -47,14 +48,16 @@ def listFileManFileAttributes(child, FileManNo, outputFile):
       if index == 0:
         child.send("\r")
         continue
-      else: 
+      else:
         # brief format 2, condensed 7, standard 1
         child.send("1\r")
         break
     while True:
       index = child.expect(["ALPHABETICALLY BY LABEL?",
                             "Start with field:",
-                            "DEVICE:"])
+                            "DEVICE:",
+                            "HOST FILE NAME:",
+                            "ADDRESS\/PARAMETERS:"])
       if index == 0:
         child.send("No\r")
         continue
@@ -62,10 +65,15 @@ def listFileManFileAttributes(child, FileManNo, outputFile):
         # using default
         child.send("\r")
         continue
+      elif index == 2:
+        child.send("HFS;387;99999\r")
+        continue
+      elif index == 3:
+        child.send(outputFile + "\r")
+        continue
       else:
-        child.send("HOME;387;9999\r")
+        child.send("\r")
         break
-    child.send("\r")
     while True:
       index = child.expect(["Select DATA DICTIONARY UTILITY OPTION:",
                             "FORM\(S\)\/BLOCK\(S\):",
@@ -102,4 +110,4 @@ if __name__ == '__main__':
   if not expectConn:
     sys.exit(-1)
   listFileManFileAttributes(expectConn, sys.argv[2],
-                            sys.argv[3])
+                            sys.argv[3], sys.argv[4])
