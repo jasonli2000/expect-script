@@ -19,7 +19,6 @@ import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from pexpect import TIMEOUT, EOF, ExceptionPexpect
 from VistATestClient import VistATestClient, VistATestClientFactory
-from CreateConnection import createExpectConnection
 from random import randint
 
 def listFileManFileAttributes(testClient, FileManNo, outputFile, logFile):
