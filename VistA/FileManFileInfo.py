@@ -13,14 +13,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #---------------------------------------------------------------------------
+from __future__ import with_statement
 from pexpect import TIMEOUT, EOF, ExceptionPexpect
 import sys
-from CreateConnection import createExpectConnection
+from VistATestClient import VistATestClient, VistATestClientFactory
 
-def getFileManAllFileInfo(child, outputFile):
+def getFileManAllFileInfo(testClient, outputFile, logFile):
+  child = testClient.getConnection()
   try:
-    child.logfile = open(outputFile,'wb')
-    child.expect("[A-Za-z0-9]+>")
+    child.logfile = open(logFile,'wb')
+    testClient.waitForPrompt()
     child.send("S DUZ=1 D Q^DI\r")
     child.expect("Select OPTION:")
     # print file entry
@@ -46,17 +48,25 @@ def getFileManAllFileInfo(child, outputFile):
     while True:
       index = child.expect(["Heading \(S\/C\):",
                             "STORE PRINT LOGIC IN TEMPLATE:",
-                            "DEVICE:"])
-      if index == 0 or index == 1:
+                            "DEVICE:",
+                            "HOST FILE NAME:",
+                            "ADDRESS\/PARAMETERS:"])
+      if index == 0 or index == 1 or index == 4:
         child.send("\r")
-        continue
+        if index == 4:
+          break
+        else:
+          continue
       elif index == 2:
-        child.send(";999;9999\r")
-        break
+        child.send("HFS;999;9999\r")
+        continue
+      elif index == 3:
+        child.send("%s\r" % outputFile)
+        continue
     child.send("\r")
     child.expect("Select OPTION:")
     child.send("\r")
-    child.expect("[A-Za-z0-9]+>")
+    testClient.waitForPrompt()
     child.send("HALT\r")
     child.terminate()
   except TIMEOUT:
@@ -76,7 +86,7 @@ if __name__ == '__main__':
   expectConn = None
   if len(sys.argv) > 2:
     system = int(sys.argv[1])
-    expectConn = createExpectConnection(system)
+    expectConn = VistATestClientFactory.createVistATestClient(system)
   if not expectConn:
     sys.exit(-1)
-  getFileManAllFileInfo(expectConn, sys.argv[2])
+  getFileManAllFileInfo(expectConn, sys.argv[2], sys.argv[3])

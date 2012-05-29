@@ -13,22 +13,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #---------------------------------------------------------------------------
+from __future__ import with_statement
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-try:
-  from winpexpect import winspawn, TIMEOUT, EOF, ExceptionPexpect
-except ImportError:
-  import pexpect
-  from pexpect import TIMEOUT, EOF, ExceptionPexpect
-  pass
+from pexpect import TIMEOUT, EOF, ExceptionPexpect
+from VistATestClient import VistATestClient, VistATestClientFactory
 from CreateConnection import createExpectConnection
 from random import randint
 
-def listFileManFileAttributes(child, FileManNo, outputFile, logFile):
+def listFileManFileAttributes(testClient, FileManNo, outputFile, logFile):
+  child = testClient.getConnection()
   try:
     child.logfile = open(logFile,'wb')
-    child.expect("[A-Za-z0-9]+>")
+    testClient.waitForPrompt()
     # change the DUZ everytime
     #duz = randint(1,100000)
     duz = 1
@@ -86,7 +84,7 @@ def listFileManFileAttributes(child, FileManNo, outputFile, logFile):
         continue
     child.expect("Select OPTION:")
     child.send("\r")
-    child.expect("[A-Za-z0-9]+>")
+    testClient.waitForPrompt()
     child.send("HALT\r")
     child.terminate()
   except TIMEOUT:
@@ -106,7 +104,7 @@ if __name__ == '__main__':
   expectConn = None
   if len(sys.argv) > 2:
     system = int(sys.argv[1])
-    expectConn = createExpectConnection(system)
+    expectConn = VistATestClientFactory.createVistATestClient(system)
   if not expectConn:
     sys.exit(-1)
   listFileManFileAttributes(expectConn, sys.argv[2],

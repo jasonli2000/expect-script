@@ -13,15 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #---------------------------------------------------------------------------
+from __future__ import with_statement
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-try:
-  from winpexpect import winspawn, TIMEOUT, EOF, ExceptionPexpect
-except ImportError:
-  import pexpect
-  pass
-from CreateConnection import createExpectConnection
+from pexpect import TIMEOUT, EOF, ExceptionPexpect
+from VistATestClient import VistATestClient, VistATestClientFactory
 from eventqueue import IEvent, ThreadPool
 import FileManGlobalAttributes
 from time import sleep
@@ -33,7 +30,7 @@ class GetFileManSchemaLogEvent(IEvent):
     self._system = system
     self._logDir = logDir
   def dispatch(self):
-    expectConn = createExpectConnection(self._system)
+    expectConn = VistATestClientFactory.createVistATestClient(self._system)
     if not expectConn:
       return
     FileManGlobalAttributes.listFileManFileAttributes(expectConn, self._fileManFile,
@@ -79,8 +76,8 @@ if __name__ == '__main__':
   parser = argparse.ArgumentParser(description='Get All FileMan File Schema')
   parser.add_argument('-i', required=True, dest='inputFile',
                       help='input file contains all fileman file# to retrieve the schema log')
-  parser.add_argument('-s', required=True, dest='system', choices='123',
-                      help='1: Cache on Windows, 2: Cache on Linux, 3: GTM on Linux')
+  parser.add_argument('-s', required=True, dest='system', choices='12',
+                      help='1: Cache, 2: GTM')
   parser.add_argument('-o', required=True, dest='outputDir',
                       help='Output dirctory to store all the data dictionary file schema')
   parser.add_argument('-n', required=False, dest="numOfThreads", type=int,
