@@ -12,17 +12,18 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import pexpect
+from pexpect import TIMEOUT, EOF, ExceptionPexpect
 try:
-  from winpexpect import winspawn, TIMEOUT, EOF, ExceptionPexpect
+  from winpexpect import winspawn
 except ImportError:
-  import pexpect
-  from pexpect import TIMEOUT, EOF, ExceptionPexpect
   pass
 import sys
 
 DEFAULT_TIME_OUT_VALUE = 60
+
 def createExpectConnectionGTMLinux():
-  child = pexpect.spawn("gtm", 
+  child = pexpect.spawn("gtm",
                         timeout = DEFAULT_TIME_OUT_VALUE)
   assert child.isalive()
   return child
@@ -34,7 +35,7 @@ def createExpectConnectionWindows():
   child.send("znspace \"VISTA\"\r")
   return child
 def createExpectConnectionCacheLinux():
-  child = pexpect.spawn("ccontrol session cache", 
+  child = pexpect.spawn("ccontrol session cache",
                         timeout =  DEFAULT_TIME_OUT_VALUE)
   assert child
   child.logfile = sys.stdout

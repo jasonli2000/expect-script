@@ -13,11 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #---------------------------------------------------------------------------
-try:
-  from winpexpect import winspawn, TIMEOUT, EOF, ExceptionPexpect
-except ImportError:
-  import pexpect
-  pass
+from pexpect import TIMEOUT, EOF, ExceptionPexpect
 import sys
 from CreateConnection import createExpectConnection
 
