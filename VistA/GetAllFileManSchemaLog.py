@@ -98,6 +98,28 @@ if __name__ == '__main__':
       main(result['inputFile'], system, numOfThreads, result['outputDir'])
   except ImportError:
     print ("sys.argv is %s" % sys.argv)
+    numOfThreads = DEFAULT_NUM_THREADS
     if len(sys.argv) <= 1:
       print ("Need at least two arguments")
       sys.exit()
+    # manual parsing for now
+    index, system, outputDir, inputFile = 0, None, None, None
+    try:
+      index = sys.argv.index("-s")
+      system = sys.argv[index+1]
+    except ValueError:
+      sys.exit()
+    try:
+      index = sys.argv.index("-o")
+      outputDir = sys.argv[index+1]
+    except ValueError:
+      sys.exit()
+    try:
+      index = sys.argv.index("-i")
+      inputFile = sys.argv[index+1]
+    except ValueError:
+      sys.exit()
+    if "-test" in sys.argv:
+      testMain(system, numOfThreads, outputDir)
+    else:
+      main(inputFile, system, numOfThreads, outputDir)
