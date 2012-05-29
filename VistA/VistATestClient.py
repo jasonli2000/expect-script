@@ -127,7 +127,6 @@ class VistATestClientFactory(object):
     elif VistATestClientFactory.SYSTEM_GTM == intSys:
       if isLinuxSystem():
         testClient = VistATestClientGTMLinux()
-
     if not testClient:
       raise Exception ("Could not create VistA Test Client")
     testClient.createConnection(command, username, password)

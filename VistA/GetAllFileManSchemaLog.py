@@ -22,7 +22,6 @@ from VistATestClient import VistATestClient, VistATestClientFactory
 from eventqueue import IEvent, ThreadPool
 import FileManGlobalAttributes
 from time import sleep
-import argparse
 
 class GetFileManSchemaLogEvent(IEvent):
   def __init__(self, system, fileManFile, logDir):
@@ -73,6 +72,8 @@ def testMain(system, numberThreads, logDir):
   runTaskInThreadPool(numberThreads, TEST_FILEMAN_FILE_LIST, system, logDir)
 
 if __name__ == '__main__':
+try:
+  import argparse
   parser = argparse.ArgumentParser(description='Get All FileMan File Schema')
   parser.add_argument('-i', required=True, dest='inputFile',
                       help='input file contains all fileman file# to retrieve the schema log')
@@ -95,3 +96,8 @@ if __name__ == '__main__':
     testMain(system, numOfThreads, result['outputDir'])
   else:
     main(result['inputFile'], system, numOfThreads, result['outputDir'])
+except ImportError:
+  print ("sys.argv is %s" % sys.argv)
+  if len(sys.argv) <= 1:
+    print ("Need at least two arguments")
+    sys.exit()
