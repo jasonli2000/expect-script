@@ -72,32 +72,32 @@ def testMain(system, numberThreads, logDir):
   runTaskInThreadPool(numberThreads, TEST_FILEMAN_FILE_LIST, system, logDir)
 
 if __name__ == '__main__':
-try:
-  import argparse
-  parser = argparse.ArgumentParser(description='Get All FileMan File Schema')
-  parser.add_argument('-i', required=True, dest='inputFile',
-                      help='input file contains all fileman file# to retrieve the schema log')
-  parser.add_argument('-s', required=True, dest='system', choices='12',
-                      help='1: Cache, 2: GTM')
-  parser.add_argument('-o', required=True, dest='outputDir',
-                      help='Output dirctory to store all the data dictionary file schema')
-  parser.add_argument('-n', required=False, dest="numOfThreads", type=int,
-                      default=DEFAULT_NUM_THREADS,
-                      help="number of threads to run in parallel")
-  parser.add_argument('-test', required=False, dest='isTest', default=False, action='store_true',
-                      help='is this the test run')
-  result = vars(parser.parse_args());
-  print (result)
-  system = int(result['system'])
-  numOfThreads = DEFAULT_NUM_THREADS
-  if result['numOfThreads']:
-    numOfThreads = result['numOfThreads']
-  if result['isTest'] == True:
-    testMain(system, numOfThreads, result['outputDir'])
-  else:
-    main(result['inputFile'], system, numOfThreads, result['outputDir'])
-except ImportError:
-  print ("sys.argv is %s" % sys.argv)
-  if len(sys.argv) <= 1:
-    print ("Need at least two arguments")
-    sys.exit()
+  try:
+    import argparse
+    parser = argparse.ArgumentParser(description='Get All FileMan File Schema')
+    parser.add_argument('-i', required=True, dest='inputFile',
+                        help='input file contains all fileman file# to retrieve the schema log')
+    parser.add_argument('-s', required=True, dest='system', choices='12',
+                        help='1: Cache, 2: GTM')
+    parser.add_argument('-o', required=True, dest='outputDir',
+                        help='Output dirctory to store all the data dictionary file schema')
+    parser.add_argument('-n', required=False, dest="numOfThreads", type=int,
+                        default=DEFAULT_NUM_THREADS,
+                        help="number of threads to run in parallel")
+    parser.add_argument('-test', required=False, dest='isTest', default=False, action='store_true',
+                        help='is this the test run')
+    result = vars(parser.parse_args());
+    print (result)
+    system = int(result['system'])
+    numOfThreads = DEFAULT_NUM_THREADS
+    if result['numOfThreads']:
+      numOfThreads = result['numOfThreads']
+    if result['isTest'] == True:
+      testMain(system, numOfThreads, result['outputDir'])
+    else:
+      main(result['inputFile'], system, numOfThreads, result['outputDir'])
+  except ImportError:
+    print ("sys.argv is %s" % sys.argv)
+    if len(sys.argv) <= 1:
+      print ("Need at least two arguments")
+      sys.exit()
