@@ -49,6 +49,7 @@ def listFileManFileAttributes(testClient, FileManNo, outputFile, logFile):
         # brief format 2, condensed 7, standard 1
         child.send("1\r")
         break
+    firstStartWithField = True
     while True:
       index = child.expect(["ALPHABETICALLY BY LABEL?",
                             "Start with field:",
@@ -59,11 +60,33 @@ def listFileManFileAttributes(testClient, FileManNo, outputFile, logFile):
         child.send("No\r")
         continue
       elif index == 1:
-        # using default
-        child.send("\r")
+        if not firstStartWithField: 
+           child.send("?\r")
+           continue
+        firstStartWithField = False
+        child.send("?\r")
+        # print out all fields to mitigate some of the parsing problem with the schema file output
+        while True:
+          idx = child.expect(["Start with field:",
+                              "Do you want the entire [0-9]+-Entry FIELD List?",
+                              "\'\^\' TO STOP:"])
+          if idx == 0:
+            # using default
+            child.send("\r")
+            break
+          elif idx == 1:
+            child.send("Y\r")
+            continue
+          elif idx == 2:
+            child.send("\r")
+            continue
+          else:
+            print ("Unexpected index value %d, send \"\\r\"" % idx)
+            child.send("\r")
+            continue
         continue
       elif index == 2:
-        child.send("HFS;387;99999\r")
+        child.send("HFS;999;99999\r")
         continue
       elif index == 3:
         child.send(outputFile + "\r")
