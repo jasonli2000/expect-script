@@ -89,7 +89,7 @@ def listFileManFileAttributes(testClient, FileManNo, outputFile, logFile):
         child.send("HFS;999;99999\r")
         continue
       elif index == 3:
-        child.send(outputFile + "\r")
+        child.send(os.path.abspath(outputFile) + "\r")
         continue
       else:
         child.send("\r")
