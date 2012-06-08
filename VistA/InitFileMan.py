@@ -13,32 +13,29 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #---------------------------------------------------------------------------
-
+from __future__ import with_statement
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-try:
-  from winpexpect import winspawn, TIMEOUT, EOF, ExceptionPexpect
-except ImportError:
-  from pexpect import TIMEOUT, EOF, ExceptionPexpect
-  pass
-from CreateConnection import createExpectConnection
+from pexpect import TIMEOUT, EOF, ExceptionPexpect
+from VistATestClient import VistATestClient, VistATestClientFactory
 import argparse
 
 def inputMumpsSystem(connection, system):
-  if system == 1 or system == 2: # this is the Cache
+  if system == 1: # this is the Cache
     connection.send("CACHE\r")
-  elif system == 3: # this is GT.M(UNIX)
+  elif system == 2: # this is GT.M(UNIX)
     connection.send("GT.M(UNIX)\r")
   else:
     pass
   return
 
-def initFileMan(connection, logFile, siteName, siteNumber,
+def initFileMan(testClient, logFile, siteName, siteNumber,
                 system, zuSet=True):
+  connection = testClient.getConnection()
   try:
     connection.logfile = open(logFile, 'wb')
-    connection.expect("[A-Za-z0-9]+>")
+    testClient.waitForPrompt()
     connection.send("D ^DINIT\r")
     connection.expect("Initialize VA FileMan now?")
     connection.send("YES\r")
@@ -56,16 +53,17 @@ def initFileMan(connection, logFile, siteName, siteNumber,
     connection.send("YES\r") # we want to change MUMPS OPERATING SYSTEM File
     connection.expect("TYPE OF MUMPS SYSTEM YOU ARE USING:")
     inputMumpsSystem(connection, system)
-    connection.expect("[A-Za-z0-9]+>")
-    if not zuSet:
-      return
-    connection.send("D ^ZUSET\r")
-    connection.expect("Rename")
-    connection.send("YES\r")
-    connection.expect("[A-Za-z0-9]+>")
+    testClient.waitForPrompt()
+    if zuSet:
+      connection.send("D ^ZUSET\r")
+      connection.expect("Rename")
+      connection.send("YES\r")
+      testClient.waitForPrompt()
+    connection.send("HALT\r")
+    connection.terminate()    
   except TIMEOUT:
     print "TimeOut"
-    print str(child)
+    print str(connection)
     connection.terminate()
   except ExceptionPexpect:
     connection.terminate()
@@ -78,15 +76,15 @@ if __name__ == '__main__':
                       help='setup the site name')
   parser.add_argument('-n', required=True, dest="stationNumber", type=int,
                       help="setup the station number")
-  parser.add_argument('-m', required=True, dest="mumpsSystem", choices='123',
-                      help="1. Cache/Windows, 2. Cache/Linux 3. GTM/Linux")
+  parser.add_argument('-m', required=True, dest="mumpsSystem", choices='12',
+                      help="1. Cache, 2. GTM")
   parser.add_argument('-l', required=True, dest="logFile",
                       help="where to store the log file")
   result = vars(parser.parse_args());
   print (result)
   expectConn = None
   system = int(result['mumpsSystem'])
-  expectConn = createExpectConnection(system)
+  expectConn = VistATestClientFactory.createVistATestClient(system)
   if not expectConn:
     sys.exit(-1)
   initFileMan(expectConn, result['logFile'],

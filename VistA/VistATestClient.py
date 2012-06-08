@@ -22,7 +22,7 @@ except ImportError:
 import sys
 import os # to get gtm environment variables
 
-DEFAULT_TIME_OUT_VALUE = 60
+DEFAULT_TIME_OUT_VALUE = 30
 CACHE_PROMPT_END = ">"
 
 class VistATestClient(object):
@@ -64,9 +64,9 @@ class VistATestClientGTMLinux(VistATestClient):
     
 class VistATestClientCache(VistATestClient):
   def __init__(self, platform, prompt = None, namespace = None):
-    super.__init__(self, platform, prompt, namespace)
+    VistATestClient.__init__(self, platform, prompt, namespace)
   def __changeNamesapce__(self):
-    self._connection.send("znspace %s\r" % self.getNamespace())
+    self._connection.send("znspace \"%s\"\r" % self.getNamespace())
   def __signIn__(self, username, password):
     with self._connection as child:
       child.expect("Username:")
@@ -79,7 +79,7 @@ class VistATestClientCacheWindows(VistATestClientCache):
   def __init__(self, namespace):
     assert namespace, "Must provide a namespace"
     prompt = namespace + CACHE_PROMPT_END
-    super.__init__(self, self.CACHE_ON_WINDOWS, prompt, namespace)
+    VistATestClientCache.__init__(self, self.CACHE_ON_WINDOWS, prompt, namespace)
   def createConnection(self, command, username = None, password = None):
     if not command:
       command = self.DEFAULT_WIN_TELNET_CMD

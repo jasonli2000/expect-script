@@ -13,29 +13,31 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #---------------------------------------------------------------------------
-
+from __future__ import with_statement
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-try:
-  from winpexpect import winspawn, TIMEOUT, EOF, ExceptionPexpect
-except ImportError:
-  from pexpect import TIMEOUT, EOF, ExceptionPexpect
-  pass
-from CreateConnection import createExpectConnection
+from pexpect import TIMEOUT, EOF, ExceptionPexpect
+from VistATestClient import VistATestClient, VistATestClientFactory
 import argparse
 
 class SetupDevice:
-  def __init__(self, system, logFile, connection):
+  def __init__(self, system, logFile, testClient):
     self._HFS = None
     self._Term =None
     self._NullDevice = None
     self._system = system
     self._logFile = logFile
-    self._connection = connection
+    self._testClient = testClient
+    self._nullDeviceLocation = ""
+    self._hfsDeviceOpenParameters = ""
     self.__setupSystemDependentParameter__()
   def __setupSystemDependentParameter__(self):
-    pass
+    if VistATestClientFactory.SYSTEM_GTM == self._system:
+      self._nullDeviceLocation = "Bit Bucket (GT.M-Unix)"
+      self._hfsDeviceOpenParameters= "(newversion)"
+    elif VistATestClientFactory.SYSTEM_CACHE == self._system:
+      self._hfsDeviceOpenParameters = "WNS"
   def setupHostFileSystem(self, HFSPath):
     self._HFS = HFSPath
   def setupTerminalDevice(self, Term):
@@ -43,7 +45,7 @@ class SetupDevice:
   def setupNullDevice(self, NullPath):
     self._NullDevice = NullPath
   def run(self):
-    connection = self._connection
+    connection = self._testClient.getConnection() 
     try:
       connection.logfile = open(self._logFile, 'wb')
       if (self._HFS):
@@ -63,8 +65,8 @@ class SetupDevice:
       connection.terminate()
 
   def __gotoEditDeviceOption__(self):
-    connection = self._connection
-    connection.expect("[A-Za-z0-9]+>")
+    connection = self._testClient.getConnection() 
+    self._testClient.waitForPrompt()
     connection.send("S DUZ=1 D P^DI\r")
     connection.expect("Select OPTION:")
     connection.send("1\r")
@@ -73,7 +75,7 @@ class SetupDevice:
 
   def __initNullDevice__(self):
     self.__gotoEditDeviceOption__()
-    connection = self._connection
+    connection = self._testClient.getConnection() 
     connection.expect("EDIT WHICH FIELD:")
     connection.send("$I\r")
     connection.expect("THEN EDIT FIELD:")
@@ -91,7 +93,7 @@ class SetupDevice:
     connection.expect("SIGN-ON\/SYSTEM DEVICE")
     connection.send("NO\r")
     connection.expect("LOCATION OF TERMINAL:")
-    connection.send("Bit Bucket (GT.M-Unix)\r")
+    connection.send("%s\r" % self._nullDeviceLocation)
     while True:
       index = connection.expect(["With", "Select DEVICE NAME:", "Replace"])
       if index == 0 or index == 2:
@@ -108,7 +110,7 @@ class SetupDevice:
 
   def __initHFSDevice__(self):
     self.__gotoEditDeviceOption__()
-    connection = self._connection
+    connection = self._testClient.getConnection() 
     connection.expect("EDIT WHICH FIELD:")
     connection.send("ALL\r")
     connection.expect("Select DEVICE NAME:")
@@ -160,7 +162,7 @@ class SetupDevice:
     connection.expect("FORM CURRENTLY MOUNTED:")
     connection.send("\r")
     connection.expect("OPEN PARAMETERS:")
-    connection.send("(newversion)\r")
+    connection.send("%s\r" % self._hfsDeviceOpenParameters)
     connection.expect("CLOSE PARAMETERS:")
     connection.send("^\r")
     connection.expect("Select DEVICE NAME:")
@@ -176,15 +178,15 @@ if __name__ == '__main__':
                       help="Set up NULL Device")
   parser.add_argument('-T', dest="Terminal",
                       help="Set up Terminal Device")
-  parser.add_argument('-m', required=True, dest="mumpsSystem", choices='123',
-                      help="1. Cache/Windows, 2. Cache/Linux 3. GTM/Linux")
+  parser.add_argument('-m', required=True, dest="mumpsSystem", choices='12',
+                      help="1. Cache 2. GTM")
   parser.add_argument('-l', required=True, dest="logFile",
                       help="where to store the log file")
   result = vars(parser.parse_args());
   print (result)
   expectConn = None
   system = int(result['mumpsSystem'])
-  expectConn = createExpectConnection(system)
+  expectConn = VistATestClientFactory.createVistATestClient(system)
   if not expectConn:
     sys.exit(-1)
   device = SetupDevice(system, result['logFile'], expectConn)
