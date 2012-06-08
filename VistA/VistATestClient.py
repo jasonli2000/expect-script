@@ -50,7 +50,7 @@ class VistATestClient(object):
 
 class VistATestClientGTMLinux(VistATestClient):
   DEFAULT_GTM_PROMPT = "GTM>"
-  DEFAULT_GTM_COMMAND = "gtm"
+  DEFAULT_GTM_COMMAND = "mumps -direct"
   def __init__(self):
     gtm_prompt = os.getenv("gtm_prompt")
     if not gtm_prompt:
