@@ -37,7 +37,7 @@ class SetupDevice:
       self._nullDeviceLocation = "Bit Bucket (GT.M-Unix)"
       self._hfsDeviceOpenParameters= "(newversion)"
     elif VistATestClientFactory.SYSTEM_CACHE == self._system:
-      self._hfsDeviceOpenParameters = "WNS"
+      self._hfsDeviceOpenParameters = "\"WNS\""
   def setupHostFileSystem(self, HFSPath):
     self._HFS = HFSPath
   def setupTerminalDevice(self, Term):
@@ -107,8 +107,42 @@ class SetupDevice:
 
   def __initTerminalDevice__(self):
     pass
-
+  
   def __initHFSDevice__(self):
+    self.__gotoEditDeviceOption__()
+    connection = self._testClient.getConnection() 
+    connection.expect("EDIT WHICH FIELD:")
+    connection.send("$I\r")
+    connection.expect("THEN EDIT FIELD:")
+    connection.send("ASK PARAMETERS\r")
+    connection.expect("THEN EDIT FIELD:")
+    connection.send("ASK HOST FILE\r")
+    connection.expect("THEN EDIT FIELD:")
+    connection.send("ASK HFS I/O OPERATION\r")
+    connection.expect("THEN EDIT FIELD:")
+    connection.send("OPEN PARAMETERS\r")
+    connection.expect("THEN EDIT FIELD:")
+    connection.send("\r")
+    connection.expect("STORE THESE FIELDS IN TEMPLATE:")
+    connection.send("\r")
+    connection.expect("Select DEVICE NAME:")
+    connection.send("HFS\r")
+    connection.expect("\$I:")
+    connection.send(self._HFS + "\r")
+    connection.expect("ASK PARAMETERS:")
+    connection.send("YES\r")
+    connection.expect("ASK HOST FILE:")
+    connection.send("YES\r")
+    connection.expect("ASK HFS I\/O OPERATION:")
+    connection.send("YES\r")
+    connection.expect("OPEN PARAMETERS:")
+    connection.send("%s\r" % self._hfsDeviceOpenParameters)
+    connection.expect("Select DEVICE NAME:")
+    connection.send("^\r")
+    connection.expect("Select OPTION:")
+    connection.send("\r")
+
+  def __initHFSDeviceAllField__(self):
     self.__gotoEditDeviceOption__()
     connection = self._testClient.getConnection() 
     connection.expect("EDIT WHICH FIELD:")
