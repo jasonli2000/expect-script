@@ -228,7 +228,7 @@ class SetupVolumeSet:
     connection.expect("STATUS:")
     connection.send("\r")
     connection.expect("CONTROLLED BY LISTENER STARTER:")
-    connection.send("YES\r")
+    connection.send("No\r")
     connection.expect("Select RPC BROKER SITE PARAMETERS DOMAIN NAME:")
     connection.send("\r")
     connection.expect("Select OPTION:")

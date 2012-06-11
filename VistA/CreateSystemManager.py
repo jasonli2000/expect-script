@@ -17,19 +17,15 @@
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-try:
-  from winpexpect import winspawn, TIMEOUT, EOF, ExceptionPexpect
-except ImportError:
-  from pexpect import TIMEOUT, EOF, ExceptionPexpect
-  pass
-from CreateConnection import createExpectConnection
+from pexpect import TIMEOUT, EOF, ExceptionPexpect
+from VistATestClient import VistATestClient, VistATestClientFactory
 import argparse
 
 class AddSystemManager:
-  def __init__(self, system, connection, logFile, name, initial, accCode, veriCode):
+  def __init__(self, system, testClient, logFile, name, initial, accCode, veriCode):
     self._system = system
     self._logFile = logFile
-    self._connection = connection
+    self._testClient = testClient
     self._name = name
     self._initial = initial
     self._accCode = accCode
@@ -39,7 +35,7 @@ class AddSystemManager:
   def __setupSystemDependentParameter__(self):
     pass
   def run(self):
-    connection = self._connection
+    connection = self._testClient.getConnection()
     try:
       connection.logfile = open(self._logFile, 'wb')
       self.__addSystemManager__()
@@ -57,8 +53,8 @@ class AddSystemManager:
       connection.terminate()
 
   def __gotoEditNewPersonOption__(self):
-    connection = self._connection
-    connection.expect("[A-Za-z0-9]+>")
+    connection = self._testClient.getConnection()
+    self._testClient.waitForPrompt()
     connection.send("S DUZ=1 D P^DI\r")
     connection.expect("Select OPTION:")
     connection.send("1\r")
@@ -66,13 +62,13 @@ class AddSystemManager:
     connection.send("200\r") # fileman file for new person
 
   def __exit__(self):
-    connection = self._connection
-    connection.expect("[A-Za-z0-9]+>")
+    connection = self._testClient.getConnection()
+    self._testClient.waitForPrompt()
     connection.send("HALT\r")
 
   def __addSystemManager__(self):
     self.__gotoEditNewPersonOption__()
-    connection = self._connection
+    connection = self._testClient.getConnection()
     connection.expect("EDIT WHICH FIELD:")
     connection.send(".01\r") # name
     connection.expect("THEN EDIT FIELD:")
@@ -242,12 +238,12 @@ class AddSystemManager:
     connection.send("\r")
 
   def __setupSystemManagerKeyOptions__(self):
-    connection = self._connection
-    connection.expect("[A-Za-z0-9]+>")
+    connection = self._testClient.getConnection()
+    self._testClient.waitForPrompt()
     connection.send("S DUZ=%s\r" % self._duz)
-    connection.expect("[A-Za-z0-9]+>")
+    self._testClient.waitForPrompt()
     connection.send("S $P(^VA(200,%s,0),\"^\",4)=\"@\"\r" % self._duz)
-    connection.expect("[A-Za-z0-9]+>")
+    self._testClient.waitForPrompt()
     connection.send("D ^XUP\r")
     while True:
       index = connection.expect(["Select TERMINAL TYPE NAME:",
@@ -285,8 +281,8 @@ class AddSystemManager:
     connection.expect("Do you really want to halt\?")
     connection.send("YES\r")
   def __findoutSystemManagerDuz__(self):
-    connection = self._connection
-    connection.expect("[A-Za-z0-9]+>")
+    connection = self._testClient.getConnection()
+    self._testClient.waitForPrompt()
     connection.send("S DUZ=1 D P^DI\r")
     connection.expect("Select OPTION:")
     connection.send("5\r")
@@ -316,8 +312,9 @@ class AddSystemManager:
         break
     connection.expect("Select OPTION:")
     connection.send("\r")
-def findoutSystemManagerDuz(connection, name):
-  connection.expect("[A-Za-z0-9]+>")
+def findoutSystemManagerDuz(testClient, name):
+  connection = testClient.getConnection()
+  testClient.waitForPrompt()
   connection.send("S DUZ=1 D P^DI\r")
   connection.expect("Select OPTION:")
   connection.send("5\r")
@@ -340,33 +337,33 @@ def findoutSystemManagerDuz(connection, name):
   connection.send("^\r")
   connection.expect("Select OPTION:")
   connection.send("\r")
-  connection.expect("[A-Za-z0-9]+>")
+  testClient.waitForPrompt()
   connection.send("HALT\r")
 
 def testFindoutSystemManagerDuz():
   expectConn = None
-  expectConn = createExpectConnection(3)
+  expectConn = VistATestClientFactory.createVistATestClient(1)
   if not expectConn:
     sys.exit(-1)
   findoutSystemManagerDuz(expectConn, "TESTUSER,SIXTY")
-
+def test():
+  testFindoutSystemManagerDuz()
+  sys.exit(0)
 if __name__ == '__main__':
-  #testFindoutSystemManagerDuz()
-  #sys.exit(0)
   parser = argparse.ArgumentParser(description='Setup System Manager')
   parser.add_argument('-N', dest='Name', required=True, help='Name')
   parser.add_argument('-I', dest='Initial', required=True, help='Initial')
   parser.add_argument('-A', dest='accCode', required=True, help='access code')
   parser.add_argument('-V', dest='veriCode', required=True, help='verification code')
-  parser.add_argument('-m', required=True, dest="mumpsSystem", choices='123',
-                      help="1. Cache/Windows, 2. Cache/Linux 3. GTM/Linux")
+  parser.add_argument('-m', required=True, dest="mumpsSystem", choices='12',
+                      help="1. Cache, 2. GTM")
   parser.add_argument('-l', required=True, dest="logFile",
                       help="where to store the log file")
   result = vars(parser.parse_args());
   print (result)
   expectConn = None
   system = int(result['mumpsSystem'])
-  expectConn = createExpectConnection(system)
+  expectConn = VistATestClientFactory.createVistATestClient(system)
   if not expectConn:
     sys.exit(-1)
   setupManager = AddSystemManager(system, expectConn, result['logFile'],
