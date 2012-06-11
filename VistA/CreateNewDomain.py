@@ -17,12 +17,8 @@
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-try:
-  from winpexpect import winspawn, TIMEOUT, EOF, ExceptionPexpect
-except ImportError:
-  from pexpect import TIMEOUT, EOF, ExceptionPexpect
-  pass
-from CreateConnection import createExpectConnection
+from pexpect import TIMEOUT, EOF, ExceptionPexpect
+from VistATestClient import VistATestClient, VistATestClientFactory
 import argparse
 
 # this class will
@@ -30,10 +26,10 @@ import argparse
 # 2. update kernel site parameter and RPC parameter file
 # 3. reindex the file
 class CreateNewDomain:
-  def __init__(self, system, connection, domainName, logFile):
+  def __init__(self, system, testClient, domainName, logFile):
     self._system = system
     self._logFile = logFile
-    self._connection = connection
+    self._testClient = testClient
     self._domain = domainName
     self.__setupSystemDependentParameter__()
     self._isNewDomain = True
@@ -41,7 +37,7 @@ class CreateNewDomain:
   def __setupSystemDependentParameter__(self):
     pass
   def run(self):
-    connection = self._connection
+    connection = self._testClient.getConnection()
     try:
       connection.logfile = open(self._logFile, 'wb')
       self.__setupNewDomainName__()
@@ -61,8 +57,8 @@ class CreateNewDomain:
       connection.terminate()
 
   def __gotoEditDomainNameOption__(self):
-    connection = self._connection
-    connection.expect("[A-Za-z0-9]+>")
+    connection = self._testClient.getConnection()
+    self._testClient.waitForPrompt()
     connection.send("S DUZ=1 D P^DI\r")
     connection.expect("Select OPTION:")
     connection.send("1\r")
@@ -70,13 +66,13 @@ class CreateNewDomain:
     connection.send("DOMAIN\r") # DOMAIN FILE
 
   def __exit__(self):
-    connection = self._connection
-    connection.expect("[A-Za-z0-9]+>")
+    connection = self._testClient.getConnection()
+    self._testClient.waitForPrompt()
     connection.send("HALT\r")
 
   def __setupNewDomainName__(self):
     self.__gotoEditDomainNameOption__()
-    connection = self._connection
+    connection = self._testClient.getConnection()
     connection.expect("EDIT WHICH FIELD:")
     connection.send("ALL\r")
     connection.expect("Select DOMAIN NAME:")
@@ -99,8 +95,8 @@ class CreateNewDomain:
     connection.send("\r")
 
   def __christenNewDomain__(self):
-    connection = self._connection
-    connection.expect("[A-Za-z0-9]+>")
+    connection = self._testClient.getConnection()
+    self._testClient.waitForPrompt()
     connection.send("DO CHRISTEN^XMUDCHR\r")
     connection.expect("Are you sure you want to change the name of this facility\?")
     connection.send("YES\r")
@@ -111,8 +107,8 @@ class CreateNewDomain:
     connection.expect("TIME ZONE:")
     connection.send("EDT\r") # VA as the parent domain
   def __findOutDomainNumber__(self):
-    connection = self._connection
-    connection.expect("[A-Za-z0-9]+>")
+    connection = self._testClient.getConnection()
+    self._testClient.waitForPrompt()
     connection.send("D P^DI\r")
     connection.expect("Select OPTION:")
     connection.send("5\r") # inquire to file entries
@@ -132,7 +128,12 @@ class CreateNewDomain:
     connection.send("\r")
     connection.expect("DEVICE:")
     connection.send("\r")
-    connection.expect("DOMAIN LIST")
+    while True:
+      index = connection.expect(["Right Margin:","DOMAIN LIST"])
+      if index == 0:
+        connection.send("\r")
+      else:
+        break
     connection.expect("NUMBER")
     connection.expect("-+")
     connection.expect("[1-9]+")
@@ -141,14 +142,14 @@ class CreateNewDomain:
     connection.expect("Select OPTION:")
     connection.send("\r")
   def __setupKernelRPCParameterFile__(self):
-    connection = self._connection
-    connection.expect("[A-Za-z0-9]+>")
+    connection = self._testClient.getConnection()
+    self._testClient.waitForPrompt()
     connection.send("S $P(^XTV(8989.3,1,0),\"^\")=%s\r" % self._newDomainNumber.strip())
-    connection.expect("[A-Za-z0-9]+>")
+    self._testClient.waitForPrompt()
     connection.send("S $P(^XWB(8994.1,1,0),\"^\")=%s\r" % self._newDomainNumber.strip())
   def __reindexFile__(self, fileNo):
-    connection = self._connection
-    connection.expect("[A-Za-z0-9]+>")
+    connection = self._testClient.getConnection()
+    self._testClient.waitForPrompt()
     connection.send("D P^DI\r")
     connection.expect("Select OPTION:")
     connection.send("UTILITY FUNCTIONS\r")
@@ -166,7 +167,6 @@ class CreateNewDomain:
     connection.send("\r")
     connection.expect("Select OPTION:")
     connection.send("\r")
-
   def __reindexKernelRPCParameterFile__(self):
     self.__reindexFile__("8989.3") # kernel system parameters
     self.__reindexFile__("8994.1") # RPC broker site parameters
@@ -176,15 +176,15 @@ if __name__ == '__main__':
   parser.add_argument('-N', dest='DomainName',
                       help='Domain Name')
   #parser.add_argument('-a', dest="Add", help="Add a new volume set")
-  parser.add_argument('-m', required=True, dest="mumpsSystem", choices='123',
-                      help="1. Cache/Windows, 2. Cache/Linux 3. GTM/Linux")
+  parser.add_argument('-m', required=True, dest="mumpsSystem", choices='12',
+                      help="1. Cache, 2. GTM")
   parser.add_argument('-l', required=True, dest="logFile",
                       help="where to store the log file")
   result = vars(parser.parse_args());
   print (result)
   expectConn = None
   system = int(result['mumpsSystem'])
-  expectConn = createExpectConnection(system)
+  expectConn = VistATestClientFactory.createVistATestClient(system)
   if not expectConn:
     sys.exit(-1)
   domain = CreateNewDomain(system, expectConn, result['DomainName'], result['logFile'])

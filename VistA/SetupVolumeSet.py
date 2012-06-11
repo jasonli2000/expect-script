@@ -17,19 +17,15 @@
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-try:
-  from winpexpect import winspawn, TIMEOUT, EOF, ExceptionPexpect
-except ImportError:
-  from pexpect import TIMEOUT, EOF, ExceptionPexpect
-  pass
-from CreateConnection import createExpectConnection
+from pexpect import TIMEOUT, EOF, ExceptionPexpect
+from VistATestClient import VistATestClient, VistATestClientFactory
 import argparse
 
 class SetupVolumeSet:
-  def __init__(self, system, connection, volName, boxName, domainName, logFile):
+  def __init__(self, system, testClient, volName, boxName, domainName, logFile):
     self._system = system
     self._logFile = logFile
-    self._connection = connection
+    self._testClient = testClient
     self._volName = volName
     self._boxName = boxName
     self._domainName = domainName
@@ -40,7 +36,7 @@ class SetupVolumeSet:
   def __setupSystemDependentParameter__(self):
     pass
   def run(self):
-    connection = self._connection
+    connection = self._testClient.getConnection()
     try:
       connection.logfile = open(self._logFile, 'wb')
       self.__findoutDefaultVolumeSet__()
@@ -65,8 +61,8 @@ class SetupVolumeSet:
       connection.terminate()
 
   def __gotoEditVolumeSetOption__(self):
-    connection = self._connection
-    connection.expect("[A-Za-z0-9]+>")
+    connection = self._testClient.getConnection()
+    self._testClient.waitForPrompt()
     connection.send("S DUZ=1 D P^DI\r")
     connection.expect("Select OPTION:")
     connection.send("1\r")
@@ -74,13 +70,13 @@ class SetupVolumeSet:
     connection.send("14.5\r") # fileman file for volume Set
 
   def __exit__(self):
-    connection = self._connection
-    connection.expect("[A-Za-z0-9]+>")
+    connection = self._testClient.getConnection()
+    self._testClient.waitForPrompt()
     connection.send("HALT\r")
 
   def __setupVolumeSet(self):
     self.__gotoEditVolumeSetOption__()
-    connection = self._connection
+    connection = self._testClient.getConnection()
     connection.expect("EDIT WHICH FIELD:")
     connection.send("ALL\r")
     connection.expect("Select VOLUME SET:")
@@ -122,8 +118,8 @@ class SetupVolumeSet:
     connection.send("\r")
 
   def __setKernelSystemParametersVolumeSet__(self):
-    connection = self._connection
-    connection.expect("[A-Za-z0-9]+>")
+    connection = self._testClient.getConnection()
+    self._testClient.waitForPrompt()
     connection.send("S DUZ=1 D P^DI\r")
     connection.expect("Select OPTION:")
     connection.send("1\r")
@@ -157,8 +153,8 @@ class SetupVolumeSet:
     connection.send("\r")
 
   def __editTaskManSiteParameter__(self):
-    connection = self._connection
-    connection.expect("[A-Za-z0-9]+>")
+    connection = self._testClient.getConnection()
+    self._testClient.waitForPrompt()
     connection.send("S DUZ=1 D P^DI\r")
     connection.expect("Select OPTION:")
     connection.send("1\r")
@@ -184,8 +180,8 @@ class SetupVolumeSet:
     connection.expect("Select OPTION:")
     connection.send("\r")
   def __editRCPBrokerSiteParameter__(self):
-    connection = self._connection
-    connection.expect("[A-Za-z0-9]+>")
+    connection = self._testClient.getConnection()
+    self._testClient.waitForPrompt()
     connection.send("S DUZ=1 D P^DI\r")
     connection.expect("Select OPTION:")
     connection.send("1\r")
@@ -232,15 +228,15 @@ class SetupVolumeSet:
     connection.expect("STATUS:")
     connection.send("\r")
     connection.expect("CONTROLLED BY LISTENER STARTER:")
-    connection.send("YES\r")
+    connection.send("No\r")
     connection.expect("Select RPC BROKER SITE PARAMETERS DOMAIN NAME:")
     connection.send("\r")
     connection.expect("Select OPTION:")
     connection.send("\r")
 
   def __findoutDefaultVolumeSet__(self):
-    connection = self._connection
-    connection.expect("[A-Za-z0-9]+>")
+    connection = self._testClient.getConnection()
+    self._testClient.waitForPrompt()
     connection.send("S DUZ=1 D P^DI\r")
     connection.expect("Select OPTION:")
     connection.send("2\r")
@@ -258,7 +254,12 @@ class SetupVolumeSet:
     connection.send("\r")
     connection.expect("DEVICE:")
     connection.send("\r")
-    connection.expect("VOLUME SET LIST")
+    while True:
+      index = connection.expect(["Right Margin:","VOLUME SET LIST"])
+      if index == 0:
+        connection.send("\r")
+      else:
+        break
     connection.expect("VOLUME SET")
     connection.expect("-+")
     connection.expect("\S+") # \S match any non-whitespace chars
@@ -269,8 +270,8 @@ class SetupVolumeSet:
     connection.send("\r")
 
   def __findoutTaskManBoxVolumePair__(self):
-    connection = self._connection
-    connection.expect("[A-Za-z0-9]+>")
+    connection = self._testClient.getConnection()
+    self._testClient.waitForPrompt()
     connection.send("S DUZ=1 D P^DI\r")
     connection.expect("Select OPTION:")
     connection.send("2\r")
@@ -288,7 +289,12 @@ class SetupVolumeSet:
     connection.send("\r")
     connection.expect("DEVICE:")
     connection.send("\r")
-    connection.expect("TASKMAN SITE PARAMETERS LIST")
+    while True:
+      index = connection.expect(["Right Margin:","TASKMAN SITE PARAMETERS LIST"])
+      if index == 0:
+        connection.send("\r")
+      else:
+        break
     connection.expect("BOX-VOLUME PAIR")
     connection.expect("-+")
     connection.expect("\S+:\S+") # \S match any non-whitespace chars
@@ -298,8 +304,8 @@ class SetupVolumeSet:
     connection.send("\r")
 
   def __findoutRPCDefaultDomainName__(self):
-    connection = self._connection
-    connection.expect("[A-Za-z0-9]+>")
+    connection = self._testClient.getConnection()
+    self._testClient.waitForPrompt()
     connection.send("S DUZ=1 D P^DI\r")
     connection.expect("Select OPTION:")
     connection.send("2\r")
@@ -319,7 +325,12 @@ class SetupVolumeSet:
     connection.send("\r")
     connection.expect("DEVICE:")
     connection.send("\r")
-    connection.expect("RPC BROKER SITE PARAMETERS LIST")
+    while True:
+      index = connection.expect(["Right Margin:","RPC BROKER SITE PARAMETERS LIST"])
+      if index == 0:
+        connection.send("\r")
+      else:
+        break
     connection.expect("DOMAIN NAME")
     connection.expect("-+")
     connection.expect("\S+") # \S match any non-whitespace chars
@@ -328,8 +339,9 @@ class SetupVolumeSet:
     connection.expect("Select OPTION:")
     connection.send("\r")
 
-def findoutTaskManBoxVolumePair(connection):
-  connection.expect("[A-Za-z0-9]+>")
+def findoutTaskManBoxVolumePair(testClient):
+  connection = testClient.getConnection()
+  testClient.waitForPrompt()
   connection.send("S DUZ=1 D P^DI\r")
   connection.expect("Select OPTION:")
   connection.send("2\r")
@@ -347,18 +359,24 @@ def findoutTaskManBoxVolumePair(connection):
   connection.send("\r")
   connection.expect("DEVICE:")
   connection.send("\r")
-  connection.expect("TASKMAN SITE PARAMETERS LIST")
+  while True:
+    index = connection.expect(["Right Margin:","TASKMAN SITE PARAMETERS LIST"])
+    if index == 0:
+      connection.send("\r")
+    else:
+      break
   connection.expect("BOX-VOLUME PAIR")
   connection.expect("-+")
   connection.expect("\S+:\S+") # \S match any non-whitespace chars
   print ("[%s]"  % (connection.after))
   connection.expect("Select OPTION:")
   connection.send("\r")
-  connection.expect("[A-Za-z0-9]+>")
+  testClient.waitForPrompt()
   connection.send("HALT\r")
 
-def findoutRPCDomainName(connection):
-  connection.expect("[A-Za-z0-9]+>")
+def findoutRPCDomainName(testClient):
+  connection = testClient.getConnection()
+  testClient.waitForPrompt()
   connection.send("S DUZ=1 D P^DI\r")
   connection.expect("Select OPTION:")
   connection.send("2\r")
@@ -378,18 +396,23 @@ def findoutRPCDomainName(connection):
   connection.send("\r")
   connection.expect("DEVICE:")
   connection.send("\r")
-  connection.expect("RPC BROKER SITE PARAMETERS LIST")
+  while True:
+    index = connection.expect(["Right Margin:","RPC BROKER SITE PARAMETERS LIST"])
+    if index == 0:
+      connection.send("\r")
+    else:
+      break
   connection.expect("DOMAIN NAME")
   connection.expect("-+")
   connection.expect("\S+") # \S match any non-whitespace chars
   print ("[%s]"  % (connection.after))
   connection.expect("Select OPTION:")
   connection.send("\r")
-  connection.expect("[A-Za-z0-9]+>")
+  testClient.waitForPrompt()
   connection.send("HALT\r")
-
-def findoutDefaultVolumeSet(connection):
-  connection.expect("[A-Za-z0-9]+>")
+def findoutDefaultVolumeSet(testClient):
+  connection = testClient.getConnection()
+  testClient.waitForPrompt()
   connection.send("S DUZ=1 D P^DI\r")
   connection.expect("Select OPTION:")
   connection.send("2\r")
@@ -407,7 +430,12 @@ def findoutDefaultVolumeSet(connection):
   connection.send("\r")
   connection.expect("DEVICE:")
   connection.send("\r")
-  connection.expect("VOLUME SET LIST")
+  while True:
+    index = connection.expect(["Right Margin:","VOLUME SET LIST"])
+    if index == 0:
+      connection.send("\r")
+    else:
+      break
   connection.expect("VOLUME SET")
   connection.expect("-+")
   connection.expect("\S+") # \S match any non-whitespace chars
@@ -415,28 +443,27 @@ def findoutDefaultVolumeSet(connection):
   print ("after expect match [%s]"  % (connection.after))
   connection.expect("Select OPTION:")
   connection.send("\r")
-  connection.expect("[A-Za-z0-9]+>")
+  testClient.waitForPrompt()
   connection.send("HALT\r")
-def testFindoutTaskManBoxVolumePair():
+def testFindoutTaskManBoxVolumePair(system):
   expectConn = None
-  expectConn = createExpectConnection(3)
+  expectConn = VistATestClientFactory.createVistATestClient(system)
   if not expectConn:
     sys.exit(-1)
   #findoutTaskManBoxVolumePair(expectConn)
   findoutRPCDomainName(expectConn)
-def testFindoutDefaultVolumeSet():
+def testFindoutDefaultVolumeSet(system):
   expectConn = None
-  expectConn = createExpectConnection(3)
+  expectConn = VistATestClientFactory.createVistATestClient(system)
   if not expectConn:
     sys.exit(-1)
-  #findoutTaskManBoxVolumePair(expectConn)
+  findoutTaskManBoxVolumePair(expectConn)
   findoutDefaultVolumeSet(expectConn)
-
+def test():
+  testFindoutTaskManBoxVolumePair(1)
+  testFindoutDefaultVolumeSet(1)
+  sys.exit(0)
 if __name__ == '__main__':
-  #testFindoutTaskManBoxVolumePair()
-  #sys.exit(0)
-  #testFindoutDefaultVolumeSet()
-  #sys.exit(0)
   parser = argparse.ArgumentParser(description='Setup Volume Set')
   parser.add_argument('-V', dest='VolumeSetName',
                       help='Volume set name')
@@ -445,15 +472,15 @@ if __name__ == '__main__':
   parser.add_argument('-D', dest='DomainName',
                       help='PRC Domain Name')
   #parser.add_argument('-a', dest="Add", help="Add a new volume set")
-  parser.add_argument('-m', required=True, dest="mumpsSystem", choices='123',
-                      help="1. Cache/Windows, 2. Cache/Linux 3. GTM/Linux")
+  parser.add_argument('-m', required=True, dest="mumpsSystem", choices='12',
+                      help="1. Cache, 2. GTM")
   parser.add_argument('-l', required=True, dest="logFile",
                       help="where to store the log file")
   result = vars(parser.parse_args());
   print (result)
   expectConn = None
   system = int(result['mumpsSystem'])
-  expectConn = createExpectConnection(system)
+  expectConn = VistATestClientFactory.createVistATestClient(system)
   if not expectConn:
     sys.exit(-1)
   volSet = SetupVolumeSet(system, expectConn,

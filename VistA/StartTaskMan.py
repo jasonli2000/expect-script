@@ -17,18 +17,14 @@
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-try:
-  from winpexpect import winspawn, TIMEOUT, EOF, ExceptionPexpect
-except ImportError:
-  from pexpect import TIMEOUT, EOF, ExceptionPexpect
-  pass
-from CreateConnection import createExpectConnection
+from pexpect import TIMEOUT, EOF, ExceptionPexpect
+from VistATestClient import VistATestClient, VistATestClientFactory
 import argparse
 
-
-def startTaskMan(connection, logFile):
+def startTaskMan(testClient, logFile):
+  connection = testClient.getConnection()
   connection.logfile = open(logFile, 'wb')
-  connection.expect("[A-Za-z0-9]+>")
+  testClient.waitForPrompt()
   connection.send("S DUZ=1 D ^XUP\r") # program menu
   connection.expect("Select OPTION NAME:")
   connection.send("EVE\r") # Systems Manager Menu
@@ -55,20 +51,20 @@ def startTaskMan(connection, logFile):
   connection.send("\r") # Systems Manager Menu
   connection.expect("Do you really want to halt\?")
   connection.send("YES\r") # Systems Manager Menu
-  connection.expect("[A-Za-z0-9]+>")
+  testClient.waitForPrompt()
   connection.send("HALT\r")
 
 if __name__ == '__main__':
   parser = argparse.ArgumentParser(description='Start TaskMan')
-  parser.add_argument('-m', required=True, dest="mumpsSystem", choices='123',
-                      help="1. Cache/Windows, 2. Cache/Linux 3. GTM/Linux")
+  parser.add_argument('-m', required=True, dest="mumpsSystem", choices='12',
+                      help="1. Cache, 2. GTM")
   parser.add_argument('-l', required=True, dest="logFile",
                       help="where to store the log file")
   result = vars(parser.parse_args());
   print (result)
   expectConn = None
   system = int(result['mumpsSystem'])
-  expectConn = createExpectConnection(system)
+  expectConn = VistATestClientFactory.createVistATestClient(system)
   if not expectConn:
     sys.exit(-1)
   startTaskMan(expectConn, result['logFile'])

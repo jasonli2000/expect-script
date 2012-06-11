@@ -16,15 +16,11 @@
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-try:
-  from winpexpect import winspawn, TIMEOUT, EOF, ExceptionPexpect
-except ImportError:
-  from pexpect import TIMEOUT, EOF, ExceptionPexpect
-  pass
+from pexpect import TIMEOUT, EOF, ExceptionPexpect
+from VistATestClient import VistATestClient, VistATestClientFactory
 import argparse
 import ConfigParser
 import InitFileMan
-from CreateConnection import createExpectConnection
 from CreateNewDomain import CreateNewDomain
 from SetupVolumeSet import SetupVolumeSet
 import StartTaskMan
@@ -69,16 +65,14 @@ class InitSystemSetup:
       self._domainName = config.get("SITE INFO", "domain_name")
 
   def __convertSystemToNumber__(self):
-    if self._system == "GTM/Linux":
-      self._system = 3
-    elif self._system == "Cache/Windows":
-      self._system = 1
-    elif self._system == "Cache/Linux":
+    if self._system == "GTM":
       self._system = 2
+    elif self._system == "Cache":
+      self._system = 1
     else:
-      raise Exception("Invalid System %s" % self._system)
-  def __createConnection__(self):
-    return createExpectConnection(self._system)
+      raise Exception("unsupported System %s" % self._system)
+  def __createTestClient__(self):
+    return VistATestClientFactory.createVistATestClient(self._system)
   def run(self):
     self.__parseConfigFile__()
     self.__initFileMan__()
@@ -104,7 +98,7 @@ class InitSystemSetup:
         except:
           pass
     # create connection
-    connection = self.__createConnection__()
+    connection = self.__createTestClient__()
     InitFileMan.initFileMan(connection,
                             os.path.join(self._logDir,"InitFileMan.log"),
                             siteName,
@@ -113,7 +107,7 @@ class InitSystemSetup:
   def __createNewDomain__(self):
     if self._domainName == None or len (self._domainName) == 0:
       return
-    connection = self.__createConnection__()
+    connection = self.__createTestClient__()
     createNewDomain = CreateNewDomain(self._system,
                                       connection,
                                       self._domainName,
@@ -122,7 +116,7 @@ class InitSystemSetup:
     print ("Creating new domain %s" % (self._domainName))
     createNewDomain.run()
   def __setupVolumeSet__(self):
-    connection = self.__createConnection__()
+    connection = self.__createTestClient__()
     setupVolumeSet = SetupVolumeSet(self._system,
                                     connection,
                                     self._volumeSet,
@@ -141,7 +135,7 @@ class InitSystemSetup:
       hfsDev = config.get("DEVICE", "hfs")
     if config.has_option("DEVICE", "null"):
       nullDev = config.get("DEVICE", "null")
-    connection = self.__createConnection__()
+    connection = self.__createTestClient__()
     setupDevice = SetupDevice(self._system,
                               os.path.join(self._logDir, "SetupDevice.log"),
                               connection)
@@ -152,7 +146,7 @@ class InitSystemSetup:
     print ("Setting Device")
     setupDevice.run()
   def __startTaskMan__(self):
-    connection = self.__createConnection__()
+    connection = self.__createTestClient__()
     print ("Starting taskman")
     StartTaskMan.startTaskMan(connection,
                               os.path.join(self._logDir, "StartTaskMan.log"))
@@ -165,7 +159,7 @@ class InitSystemSetup:
     initial = config.get("SYSTEM MANAGER","initial")
     accCode = config.get("SYSTEM MANAGER","access_code")
     veriCode = config.get("SYSTEM MANAGER","verify_code")
-    connection = self.__createConnection__()
+    connection = self.__createTestClient__()
     systemManager = AddSystemManager(self._system,
                                      connection,
                                      os.path.join(self._logDir, "CreateSystemManager.log"),
