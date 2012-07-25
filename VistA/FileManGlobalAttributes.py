@@ -21,7 +21,91 @@ from pexpect import TIMEOUT, EOF, ExceptionPexpect
 from VistATestClient import VistATestClient, VistATestClientFactory
 from random import randint
 
-def listFileManFileAttributes(testClient, FileManNo, outputFile, logFile):
+def printStandardOutput(child, outputFile):
+  while True:
+    index = child.expect(["ALPHABETICALLY BY LABEL?",
+                          "Start with field:",
+                          "DEVICE:",
+                          "HOST FILE NAME:",
+                          "ADDRESS\/PARAMETERS:"])
+    if index == 0:
+      child.send("No\r")
+      continue
+    elif index == 1:
+      child.send("\r")
+      continue
+    elif index == 2:
+      child.send("HFS;999;99999\r")
+      continue
+    elif index == 3:
+      child.send(os.path.abspath(outputFile) + "\r")
+      continue
+    else:
+      child.send("\r")
+      break
+  while True:
+    index = child.expect(["Select DATA DICTIONARY UTILITY OPTION:",
+                          "FORM\(S\)\/BLOCK\(S\):",
+                          "\a"])
+    if index == 0:
+      child.send("\r")
+      break
+    if index == 1 or index == 2:
+      child.send("\r")
+      continue
+# 
+def printCustomOutput(child, outputFile):
+  while True:
+    index = child.expect(["SORT BY:",
+                          "START WITH NUMBER:",
+                          "WITHIN NUMBER, SORT BY:",
+                          "DEVICE:",
+                          "HOST FILE NAME:",
+                          "ADDRESS\/PARAMETERS:"])
+    if index == 0:
+      child.send("NUMBER\r")
+      continue
+    elif index == 1:
+      child.send("\r")
+      continue
+    elif index == 2:
+      child.send("\r")
+      child.expect("FIRST PRINT ATTRIBUTE:")
+      child.send("NUMBER\r")
+      for item in ["GLOBAL SUBSCRIPT LOCATION",
+                   "TYPE",
+                   "SPECIFIER",
+                   "LABEL"]:
+        child.expect("THEN PRINT ATTRIBUTE:")
+        child.send("%s\r" % item)
+      child.expect("THEN PRINT ATTRIBUTE:")
+      child.send("\r")
+      child.expect("Heading \(S\/C\):")
+      child.send("FIELD LIST\r")
+      child.expect("STORE PRINT LOGIC IN TEMPLATE:")
+      child.send("\r")
+      continue
+    elif index == 3:
+      child.send("HFS;999;99999\r")
+      continue
+    elif index == 4:
+      child.send(os.path.abspath(outputFile) + "\r")
+      continue
+    else:
+      child.send("\r")
+      break
+  while True:
+    index = child.expect(["Select DATA DICTIONARY UTILITY OPTION:",
+                          "FORM\(S\)\/BLOCK\(S\):",
+                          "\a"])
+    if index == 0:
+      child.send("\r")
+      break
+    if index == 1 or index == 2:
+      child.send("\r")
+      continue
+
+def listFileManFileAttributes(testClient, FileManNo, outputFormat, outputFile, logFile):
   child = testClient.getConnection()
   try:
     child.logfile = open(logFile,'wb')
@@ -47,63 +131,12 @@ def listFileManFileAttributes(testClient, FileManNo, outputFile, logFile):
         continue
       else:
         # brief format 2, condensed 7, standard 1
-        child.send("1\r")
+        child.send("%s\r" % outputFormat)
         break
-    firstStartWithField = True
-    while True:
-      index = child.expect(["ALPHABETICALLY BY LABEL?",
-                            "Start with field:",
-                            "DEVICE:",
-                            "HOST FILE NAME:",
-                            "ADDRESS\/PARAMETERS:"])
-      if index == 0:
-        child.send("No\r")
-        continue
-      elif index == 1:
-        if not firstStartWithField: 
-           child.send("?\r")
-           continue
-        firstStartWithField = False
-        child.send("?\r")
-        # print out all fields to mitigate some of the parsing problem with the schema file output
-        while True:
-          idx = child.expect(["Start with field:",
-                              "Do you want the entire [0-9]+-Entry FIELD List?",
-                              "\'\^\' TO STOP:"])
-          if idx == 0:
-            # using default
-            child.send("\r")
-            break
-          elif idx == 1:
-            child.send("Y\r")
-            continue
-          elif idx == 2:
-            child.send("\r")
-            continue
-          else:
-            print ("Unexpected index value %d, send \"\\r\"" % idx)
-            child.send("\r")
-            continue
-        continue
-      elif index == 2:
-        child.send("HFS;999;99999\r")
-        continue
-      elif index == 3:
-        child.send(os.path.abspath(outputFile) + "\r")
-        continue
-      else:
-        child.send("\r")
-        break
-    while True:
-      index = child.expect(["Select DATA DICTIONARY UTILITY OPTION:",
-                            "FORM\(S\)\/BLOCK\(S\):",
-                            "\a"])
-      if index == 0:
-        child.send("\r")
-        break
-      if index == 1 or index == 2:
-        child.send("\r")
-        continue
+    if int(outputFormat) == 1:
+      printStandardOutput(child, outputFile)
+    elif int(outputFormat) == 3:
+      printCustomOutput(child, outputFile)
     child.expect("Select OPTION:")
     child.send("\r")
     testClient.waitForPrompt()
@@ -121,7 +154,7 @@ def listFileManFileAttributes(testClient, FileManNo, outputFile, logFile):
 if __name__ == '__main__':
   print ("sys.argv is %s" % sys.argv)
   if len(sys.argv) <= 1:
-    print ("Need at least two arguments")
+    print ("Need at least five arguments")
     sys.exit()
   expectConn = None
   if len(sys.argv) > 2:
@@ -129,5 +162,5 @@ if __name__ == '__main__':
     expectConn = VistATestClientFactory.createVistATestClient(system)
   if not expectConn:
     sys.exit(-1)
-  listFileManFileAttributes(expectConn, sys.argv[2],
-                            sys.argv[3], sys.argv[4])
+  listFileManFileAttributes(expectConn, sys.argv[2], sys.argv[3],
+                            sys.argv[4], sys.argv[5])
