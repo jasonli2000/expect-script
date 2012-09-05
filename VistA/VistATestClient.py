@@ -121,9 +121,9 @@ class VistATestClientFactory(object):
     assert intSys > VistATestClientFactory.SYSTEM_NONE and intSys < VistATestClientFactory.SYSTEM_LAST
     if VistATestClientFactory.SYSTEM_CACHE == intSys:
       if isLinuxSystem():
-        testClient = VistATestClientCacheLinux("VISTA")
+        testClient = VistATestClientCacheLinux(namespace)
       elif isWindowsSystem():
-        testClient = VistATestClientCacheWindows("VISTA")
+        testClient = VistATestClientCacheWindows(namespace)
     elif VistATestClientFactory.SYSTEM_GTM == intSys:
       if isLinuxSystem():
         testClient = VistATestClientGTMLinux()
