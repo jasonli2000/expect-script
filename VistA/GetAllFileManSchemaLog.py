@@ -30,12 +30,12 @@ class GetFileManSchemaLogEvent(IEvent):
     self._logDir = logDir
     self._namespace = namespace
   def dispatch(self):
-    expectConn = VistATestClientFactory.createVistATestClient(self._system, namespace=self._namespace)
-    if not expectConn:
-      return
-    FileManGlobalAttributes.listFileManFileAttributes(expectConn, self._fileManFile, 3,
-                              os.path.join(self._logDir, self._fileManFile + ".custom"),
-                              os.path.join(self._logDir, self._fileManFile + ".customlog"))
+#    expectConn = VistATestClientFactory.createVistATestClient(self._system, namespace=self._namespace)
+#    if not expectConn:
+#      return
+#    FileManGlobalAttributes.listFileManFileAttributes(expectConn, self._fileManFile, 3,
+#                              os.path.join(self._logDir, self._fileManFile + ".custom"),
+#                              os.path.join(self._logDir, self._fileManFile + ".customlog"))
     expectConn = VistATestClientFactory.createVistATestClient(self._system, namespace=self._namespace)
     if not expectConn:
       return
