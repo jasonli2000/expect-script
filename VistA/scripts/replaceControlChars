@@ -1,0 +1,9 @@
+in vim
+This will get rid of echo back for enter
+:%s/\[?1l>//gc
+This will get rid of echo back for enter
+:%s/\[?1h=//gc
+This will get rid of prefix for echo back chars
+:%s/\[C//gc 
+This will handle the echo back for more than one line
+:%s/\[[AC]//gc
