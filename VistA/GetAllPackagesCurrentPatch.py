@@ -16,6 +16,7 @@
 import sys
 import os
 import re
+from datetime import datetime
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 try:
   from winpexpect import winspawn, TIMEOUT, EOF, ExceptionPexpect
@@ -29,7 +30,7 @@ def getAllPackagesPatchHistory(testClient, outputFile):
   #allPackages = GetAllPackages(testClient, outputFile)
   GetPackagePatchHistory(testClient, outputFile, "TOOLKIT")
   testClient.getConnection().terminate()
-"""Return a list of tuple of 2 (PackageName, Primary Namespace)
+"""Return a list of tuple of 2 (PackageName, Primary Namespace)vs
 on Error, just return None
 """
 def GetAllPackages(testClient, outputFile):
@@ -137,8 +138,85 @@ def GetPackagePatchHistory(testClient, outputFile, packageName):
     connection.terminate()
   return result
 
+class PatchInfo(object):
+  PATCH_HISTORY_LINE_REGEX = re.compile("^   [0-9]")
+  PATCH_VERSION_START_INDEX = 3
+  PATCH_APPLIED_DATETIME_INDEX = 20
+  PATCH_APPLIED_USERNAME_INDEX = 50
+  
+  DATETIME_FORMAT_STRING = "%b %d, %Y@%H:%M:%S"
+  DATE_FORMAT_STRING = "%b %d, %Y"
+  DATE_TIME_SEPERATOR = "@"
+  def __init__(self, historyLine):
+    self.patchNo = None
+    self.seqNo = None
+    self.datetime = None
+    self.userName = None
+    self.__parseHistoryLine__(historyLine)
+  def __parseHistoryLine__(self, historyLine):
+    totalLen = len(historyLine)
+    if totalLen < self.PATCH_VERSION_START_INDEX:
+      return
+    if totalLen > self.PATCH_APPLIED_USERNAME_INDEX:
+      self.userName = historyLine[self.PATCH_APPLIED_USERNAME_INDEX:].strip()
+    if totalLen > self.PATCH_APPLIED_DATETIME_INDEX:
+      datetimePart = historyLine[self.PATCH_APPLIED_DATETIME_INDEX:self.PATCH_APPLIED_USERNAME_INDEX].strip()
+      pos = datetimePart.find(self.DATE_TIME_SEPERATOR)
+      if pos >=0:
+        if len(datetimePart) - pos == 3:
+          datetimePart += ":00:00"
+        if len(datetimePart) - pos == 6:
+          datetimePart +=":00"
+        self.datetime = datetime.strptime(datetimePart, self.DATETIME_FORMAT_STRING)
+      else:
+        self.datetime = datetime.strptime(datetimePart, self.DATE_FORMAT_STRING)
+    patchPart = historyLine[self.PATCH_VERSION_START_INDEX:self.PATCH_APPLIED_DATETIME_INDEX]
+    seqIndex = patchPart.find("SEQ #")
+    if seqIndex >= 0:
+      self.patchNo = int(patchPart[:seqIndex].strip())
+      self.seqNo = int(patchPart[seqIndex+5:].strip())
+    else:
+      self.patchNo = int(patchPart.strip())
+    
+  @staticmethod
+  def isValidHistoryLine(historyLine):
+    return PatchInfo.PATCH_HISTORY_LINE_REGEX.search(historyLine) != None
+  
+  def __str__(self):
+    retString = ""
+    if self.patchNo:
+      retString += "%d" % self.patchNo
+    if self.seqNo:
+      retString += " SEQ #%d" % self.seqNo
+    if self.datetime:
+      retString += ", %s" % self.datetime.strftime(self.DATETIME_FORMAT_STRING)
+    if self.userName:
+      retString += ", %s" % self.userName
+    return retString
+  def __repr__(self):
+    return self.__str__()
+
 def parseKIDSPatchHistory(historyString):
-  print ("patch history is [%s]" % historyString)
+  allLines = historyString.split('\r\n')
+  patchHistoryStart = False
+  result = None
+  for line in allLines:
+    line = line.rstrip()
+    if len(line) == 0:
+      continue
+    if re.search("^-+$", line):
+      patchHistoryStart = True
+      continue
+    if patchHistoryStart:
+      if not PatchInfo.isValidHistoryLine(line):
+        continue
+      if not result: result = []
+      patchInfo = PatchInfo(line)
+      result.append((patchInfo))
+  if result:
+    import pprint
+    pprint.pprint(result)
+  return result
 
 if __name__ == '__main__':
   print ("sys.argv is %s" % sys.argv)
