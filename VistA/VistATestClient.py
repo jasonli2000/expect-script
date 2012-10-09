@@ -115,7 +115,7 @@ class VistATestClientFactory(object):
   SYSTEM_GTM = 2
   SYSTEM_LAST = 3
   @staticmethod
-  def createVistATestClient(system, prompt = None, namespace = None, command = None, username = None, password = None):
+  def createVistATestClient(system, prompt = None, namespace = "VISTA", command = None, username = None, password = None):
     intSys = int(system)
     testClient = None
     assert intSys > VistATestClientFactory.SYSTEM_NONE and intSys < VistATestClientFactory.SYSTEM_LAST
