@@ -27,8 +27,18 @@ except ImportError:
 from VistATestClient import VistATestClientFactory
 
 def getAllPackagesPatchHistory(testClient, outputFile):
-  #allPackages = GetAllPackages(testClient, outputFile)
-  GetPackagePatchHistory(testClient, outputFile, "TOOLKIT")
+  try:
+    allPackages = GetAllPackages(testClient, outputFile)
+    if not allPackages:
+      testClient.getConnection().terminate()
+      return
+    for package in allPackages:
+      print ("Parsing Package %s" % package[0])
+      #if not (package[0] == "PHARMACY" and package[1] == "PS"): continue
+      GetPackagePatchHistory(testClient, outputFile, package[0], package[1])
+  except:
+    print ("Unexpected Error!")
+    pass
   testClient.getConnection().terminate()
 """Return a list of tuple of 2 (PackageName, Primary Namespace)vs
 on Error, just return None
@@ -62,7 +72,7 @@ def GetAllPackages(testClient, outputFile):
     connection.expect("Select OPTION:")
     result = parseAllPackges(connection.before)
     connection.send("\r")
-    close(outputFile)
+    connection.logfile.close()
   except TIMEOUT:
     print "TimeOut"
     print str(connection)
@@ -90,7 +100,21 @@ def parseAllPackges(allPackageString):
       print ("Name is [%s], Namespace is [%s]" % (line[:32].strip(), line[32:].strip()))
   return result
 
-def GetPackagePatchHistory(testClient, outputFile, packageName):
+def findChoiceNumber(choiceTxt, matchString, namespace):
+  print ("txt is [%s]" % choiceTxt)
+  choiceLines = choiceTxt.split('\r\n')
+  for line in choiceLines:
+    if len(line.rstrip()) == 0:
+      continue
+    result = re.search('^ +(?P<number>[1-9])   %s +%s$' % (matchString, namespace), line)
+    if result:
+      print (line)
+      return result.group('number')
+    else:
+      continue
+  return None
+
+def GetPackagePatchHistory(testClient, outputFile, packageName, namespace):
   connection = testClient.getConnection()
   result = None
   try:
@@ -111,14 +135,30 @@ def GetPackagePatchHistory(testClient, outputFile, packageName):
     connection.send("Display\r")
     connection.expect("Select PACKAGE NAME:")
     connection.send("%s\r" % packageName)
-    connection.expect("Select VERSION:")
-    connection.send("\r")
-    connection.expect("Do you want to see the Descriptions\?")
-    connection.send("\r")
-    connection.expect("DEVICE:")
-    connection.send(";132;99999\r")
-    connection.expect("Select Utilities Option:")
-    result = parseKIDSPatchHistory(connection.before)
+    while True:
+      index  = connection.expect(["Select VERSION: [0-9.]+\/\/",
+                                  "Select VERSION: ",
+                                  "Select Utilities Option:",
+                                  "CHOOSE 1-"])
+      if index == 3:
+        outchoice = findChoiceNumber(connection.before, packageName, namespace)
+        if outchoice:
+          connection.send("%s\r" % outchoice)
+        continue
+      if index == 0 or index == 1:
+        if index == 0:
+          connection.send("\r")
+        else:
+          connection.send("1.0\r")
+        connection.expect("Do you want to see the Descriptions\?")
+        connection.send("\r")
+        connection.expect("DEVICE:")
+        connection.send(";132;99999\r")
+        connection.expect("Select Utilities Option:")
+        result = parseKIDSPatchHistory(connection.before)
+        break
+      else:
+        break
     connection.send("\r")
     connection.expect("Select Kernel Installation \& Distribution System Option:")
     connection.send("\r")
@@ -156,6 +196,9 @@ class PatchInfo(object):
   def __parseHistoryLine__(self, historyLine):
     totalLen = len(historyLine)
     if totalLen < self.PATCH_VERSION_START_INDEX:
+      return
+    if historyLine.find(";Created on") >=0:
+      print (historyLine)
       return
     if totalLen > self.PATCH_APPLIED_USERNAME_INDEX:
       self.userName = historyLine[self.PATCH_APPLIED_USERNAME_INDEX:].strip()
