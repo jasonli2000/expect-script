@@ -372,3 +372,6 @@ if __name__ == '__main__':
                           result['accCode'],
                           result['veriCode'])
   setupManager.run()
+
+# keys that needs to assign to programmer for adding a drug file
+# ("PSNMGR", "PSORPH", "PSJU MGR", "PSJI MGR", "PSGWMGR", "PSDMGR", "PSAMGR")

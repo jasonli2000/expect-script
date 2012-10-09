@@ -24,15 +24,22 @@ import FileManGlobalAttributes
 from time import sleep
 
 class GetFileManSchemaLogEvent(IEvent):
-  def __init__(self, system, fileManFile, logDir):
+  def __init__(self, system, fileManFile, logDir, namespace):
     self._fileManFile = fileManFile
     self._system = system
     self._logDir = logDir
+    self._namespace = namespace
   def dispatch(self):
-    expectConn = VistATestClientFactory.createVistATestClient(self._system)
+#    expectConn = VistATestClientFactory.createVistATestClient(self._system, namespace=self._namespace)
+#    if not expectConn:
+#      return
+#    FileManGlobalAttributes.listFileManFileAttributes(expectConn, self._fileManFile, 3,
+#                              os.path.join(self._logDir, self._fileManFile + ".custom"),
+#                              os.path.join(self._logDir, self._fileManFile + ".customlog"))
+    expectConn = VistATestClientFactory.createVistATestClient(self._system, namespace=self._namespace)
     if not expectConn:
       return
-    FileManGlobalAttributes.listFileManFileAttributes(expectConn, self._fileManFile,
+    FileManGlobalAttributes.listFileManFileAttributes(expectConn, self._fileManFile, 1,
                               os.path.join(self._logDir, self._fileManFile + ".schema"),
                               os.path.join(self._logDir, self._fileManFile + ".log"))
   def __expr__(self):
@@ -49,27 +56,27 @@ DEFAULT_NUM_THREADS = 10
 DEFAULT_THROTTLE_NUMBER = 20
 DEFAULT_SLEEP_SECONDS = 1
 
-def runTaskInThreadPool(numTheads, fileManList, system, logDir):
+def runTaskInThreadPool(numTheads, fileManList, system, logDir, namespace):
   threadPool = ThreadPool(numTheads)
   index = 0
   for item in fileManList:
     item = item.strip()
     print ("Adding %s to the queue" % item)
-    threadPool.addEvent(GetFileManSchemaLogEvent(system, item, logDir))
+    threadPool.addEvent(GetFileManSchemaLogEvent(system, item, logDir, namespace))
     index = index + 1
     if (index % DEFAULT_THROTTLE_NUMBER) == 0:
       print ("total file %d processed, sleeping for %d seconds......" % (index, DEFAULT_SLEEP_SECONDS))
       sleep(DEFAULT_SLEEP_SECONDS)
   threadPool.stop()
 
-def main(inputFile, system, numberThreads, logDir):
+def main(inputFile, system, numberThreads, logDir, namespace):
   print ("inputFile is %s" % inputFile)
   allfilemanfile = open(inputFile, "rb")
   assert(allfilemanfile)
-  runTaskInThreadPool(numberThreads, allfilemanfile, system, logDir)
+  runTaskInThreadPool(numberThreads, allfilemanfile, system, logDir, namespace)
 
-def testMain(system, numberThreads, logDir):
-  runTaskInThreadPool(numberThreads, TEST_FILEMAN_FILE_LIST, system, logDir)
+def testMain(system, numberThreads, logDir, namespace):
+  runTaskInThreadPool(numberThreads, TEST_FILEMAN_FILE_LIST, system, logDir, namespace)
 
 if __name__ == '__main__':
   try:
@@ -81,6 +88,8 @@ if __name__ == '__main__':
                         help='1: Cache, 2: GTM')
     parser.add_argument('-o', required=True, dest='outputDir',
                         help='Output dirctory to store all the data dictionary file schema')
+    parser.add_argument('--namespace', required=False, dest='namespace',
+                        default="VISTA")
     parser.add_argument('-n', required=False, dest="numOfThreads", type=int,
                         default=DEFAULT_NUM_THREADS,
                         help="number of threads to run in parallel")
@@ -93,9 +102,9 @@ if __name__ == '__main__':
     if result['numOfThreads']:
       numOfThreads = result['numOfThreads']
     if result['isTest'] == True:
-      testMain(system, numOfThreads, result['outputDir'])
+      testMain(system, numOfThreads, result['outputDir'], result['namespace'])
     else:
-      main(result['inputFile'], system, numOfThreads, result['outputDir'])
+      main(result['inputFile'], system, numOfThreads, result['outputDir'], result['namespace'])
   except ImportError:
     print ("sys.argv is %s" % sys.argv)
     numOfThreads = DEFAULT_NUM_THREADS

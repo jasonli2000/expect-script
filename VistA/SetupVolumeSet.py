@@ -40,7 +40,7 @@ class SetupVolumeSet:
     try:
       connection.logfile = open(self._logFile, 'wb')
       self.__findoutDefaultVolumeSet__()
-      if self._defaultVolSet != self._volName:
+      if True: #self._defaultVolSet != self._volName:
         self.__setupVolumeSet()
         # this is to make sure the vol set is the same as the one in
         # kernel system parameters file 8989.3
@@ -234,6 +234,15 @@ class SetupVolumeSet:
     connection.expect("Select OPTION:")
     connection.send("\r")
 
+  def __findoutSystemBoxVolumeSet__(self):
+# this is to find the VistA system-wise box-volume pair after initialization
+    connection = self._testClient.getConnection()
+    self._testClient.waitForPrompt()
+    connection.send("D GETENV^%ZOSV W Y\r")
+    connection.expect("(?P<volSet>[^\^:]+):(?P<boxValue>[^\^:]+)")
+    print (connection.match)
+    self._testClient.waitForPrompt()
+
   def __findoutDefaultVolumeSet__(self):
     connection = self._testClient.getConnection()
     self._testClient.waitForPrompt()
@@ -268,7 +277,6 @@ class SetupVolumeSet:
     print ("after expect match [%s]"  % (connection.after))
     connection.expect("Select OPTION:")
     connection.send("\r")
-
   def __findoutTaskManBoxVolumePair__(self):
     connection = self._testClient.getConnection()
     self._testClient.waitForPrompt()
@@ -299,7 +307,7 @@ class SetupVolumeSet:
     connection.expect("-+")
     connection.expect("\S+:\S+") # \S match any non-whitespace chars
     self._origBoxVolSet = connection.after
-    print ("[%s]"  % (connection.after))
+    print ("default box_vloume pair is [%s]"  % (connection.after))
     connection.expect("Select OPTION:")
     connection.send("\r")
 
@@ -368,12 +376,9 @@ def findoutTaskManBoxVolumePair(testClient):
   connection.expect("BOX-VOLUME PAIR")
   connection.expect("-+")
   connection.expect("\S+:\S+") # \S match any non-whitespace chars
-  print ("[%s]"  % (connection.after))
+  print ("default box-volume pair is [%s]"  % (connection.after))
   connection.expect("Select OPTION:")
   connection.send("\r")
-  testClient.waitForPrompt()
-  connection.send("HALT\r")
-
 def findoutRPCDomainName(testClient):
   connection = testClient.getConnection()
   testClient.waitForPrompt()
@@ -408,8 +413,6 @@ def findoutRPCDomainName(testClient):
   print ("[%s]"  % (connection.after))
   connection.expect("Select OPTION:")
   connection.send("\r")
-  testClient.waitForPrompt()
-  connection.send("HALT\r")
 def findoutDefaultVolumeSet(testClient):
   connection = testClient.getConnection()
   testClient.waitForPrompt()
@@ -443,8 +446,6 @@ def findoutDefaultVolumeSet(testClient):
   print ("after expect match [%s]"  % (connection.after))
   connection.expect("Select OPTION:")
   connection.send("\r")
-  testClient.waitForPrompt()
-  connection.send("HALT\r")
 def testFindoutTaskManBoxVolumePair(system):
   expectConn = None
   expectConn = VistATestClientFactory.createVistATestClient(system)
@@ -459,8 +460,25 @@ def testFindoutDefaultVolumeSet(system):
     sys.exit(-1)
   findoutTaskManBoxVolumePair(expectConn)
   findoutDefaultVolumeSet(expectConn)
+  findoutSystemBoxVolumeSet(expectConn)
+  expectConn.waitForPrompt()
+  expectConn.getConnection().terminate()
+def findoutSystemBoxVolumeSet(expectConn):
+# this is to find the VistA system-wise box-volume pair after initialization
+  connection = expectConn.getConnection()
+  expectConn.waitForPrompt()
+  connection.send("D GETENV^%ZOSV W Y\r")
+  connection.expect("(?P<UCI>[^\^\r\n]+)\^(?P<VOL>[^\^]+)\^(?P<Node>[^\^]+)\^(?P<volSet>[^\^:]+):(?P<boxValue>[^\^:\r\n]+)")
+  result = connection.match
+  if result:
+    print (result.groups())
+    print (result.group('UCI'))
+    print (result.group('VOL'))
+    print (result.group('Node'))
+    print (result.group('volSet'))
+    print (result.group('boxValue'))
 def test():
-  testFindoutTaskManBoxVolumePair(1)
+  #testFindoutTaskManBoxVolumePair(1)
   testFindoutDefaultVolumeSet(1)
   sys.exit(0)
 if __name__ == '__main__':

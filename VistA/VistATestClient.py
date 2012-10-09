@@ -50,7 +50,7 @@ class VistATestClient(object):
 
 class VistATestClientGTMLinux(VistATestClient):
   DEFAULT_GTM_PROMPT = "GTM>"
-  DEFAULT_GTM_COMMAND = "gtm"
+  DEFAULT_GTM_COMMAND = "mumps -direct"
   def __init__(self):
     gtm_prompt = os.getenv("gtm_prompt")
     if not gtm_prompt:
@@ -121,9 +121,9 @@ class VistATestClientFactory(object):
     assert intSys > VistATestClientFactory.SYSTEM_NONE and intSys < VistATestClientFactory.SYSTEM_LAST
     if VistATestClientFactory.SYSTEM_CACHE == intSys:
       if isLinuxSystem():
-        testClient = VistATestClientCacheLinux("VISTA")
+        testClient = VistATestClientCacheLinux(namespace)
       elif isWindowsSystem():
-        testClient = VistATestClientCacheWindows("VISTA")
+        testClient = VistATestClientCacheWindows(namespace)
     elif VistATestClientFactory.SYSTEM_GTM == intSys:
       if isLinuxSystem():
         testClient = VistATestClientGTMLinux()
