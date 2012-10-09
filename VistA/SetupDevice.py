@@ -38,6 +38,7 @@ class SetupDevice:
       self._hfsDeviceOpenParameters= "(newversion)"
     elif VistATestClientFactory.SYSTEM_CACHE == self._system:
       self._hfsDeviceOpenParameters = "\"WNS\""
+      self._nullDeviceLocation = "NT SYSTEM"
   def setupHostFileSystem(self, HFSPath):
     self._HFS = HFSPath
   def setupTerminalDevice(self, Term):
