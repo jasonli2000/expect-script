@@ -329,6 +329,8 @@ class KIDSPatchInfo(object):
     self.kidsFilePath = None
     self.depKIDSPatch = None
     self.rundate = None
+    self.status = None
+    self.priority = None
   def __str__(self):
     pass
   def __repr__(self):
@@ -338,8 +340,10 @@ This class will read the KIDS installation guide and extract information and
 create a KIDPatch Info object
 """
 class KIDSPatchInfoParser(object):
-  RUNDATE_DESIGNATION_REGEX=re.compile("^Run Date: (?P<date>[A-Z]{3,3} [0-9][0-9], [0-9]{4,4}) +Designation: (?P<design>.*)")
+  RUNDATE_DESIGNATION_REGEX = re.compile("^Run Date: (?P<date>[A-Z]{3,3} [0-9][0-9], [0-9]{4,4}) +Designation: (?P<design>.*)")
   RUNDATE_FORMAT_STRING = "%b %d, %Y"
+  PACKAGE_PRIORITY_REGEX = re.compile("^Package : (?P<name>.*) Priority: (?P<pri>.*)")
+  VERSION_STATUS_REGEX = re.compile("^Version : (?P<no>.*) Status: (?P<status>.*)")
   def __init__(self):
     self._kidsPatchInfo = KIDSPatchInfo()
   def analyzeFOIAPatchDir(self, patchDir):
@@ -353,8 +357,17 @@ class KIDSPatchInfoParser(object):
       if ret:
         self._kidsPatchInfo.rundate = datetime(ret.group('date'),RUNDATE_FORMAT_STRING)
         self._kidsPatchInfo.installName = ret.group('design')
-
-
+        continue
+      ret = PACKAGE_PRIORITY_REGEX.search(line)
+      if ret:
+        package = ret.group('name').strip()
+        (namespace, name) = package.split('-')
+        self._kidsPatchInfo.namespace = namespace.strip()
+        self._kidsPatchInfo.package = name.strip()
+        continue
+      ret = VERSION_STATUS_REGEX.search(line)
+      if ret:
+        version = ret.group('no')
 
 
 
