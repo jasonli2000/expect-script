@@ -47,7 +47,6 @@ class VistATestClient(object):
     return self._prompt
   def getNamespace(self):
     return self._namespace
-
 class VistATestClientGTMLinux(VistATestClient):
   DEFAULT_GTM_PROMPT = "GTM>"
   DEFAULT_GTM_COMMAND = "mumps -direct"
@@ -61,6 +60,9 @@ class VistATestClientGTMLinux(VistATestClient):
       command = self.DEFAULT_GTM_COMMAND
     self._connection = pexpect.spawn(command, timeout = DEFAULT_TIME_OUT_VALUE)
     assert self._connection.isalive()
+  def __del__(self):
+    if self._connection:
+      self._connection.close()
     
 class VistATestClientCache(VistATestClient):
   def __init__(self, platform, prompt = None, namespace = None):
@@ -73,6 +75,9 @@ class VistATestClientCache(VistATestClient):
       child.send("%s\r" % username)
       child.expect("Password:")
       child.send("%s\r" % password)
+  def __del__(self):
+    if self._connection:
+      self._connection.close()
 
 class VistATestClientCacheWindows(VistATestClientCache):
   DEFAULT_WIN_TELNET_CMD =  "C:/users/jason.li/Downloads/apps/plink.exe -telnet 127.0.0.1 -P 23"
@@ -88,6 +93,9 @@ class VistATestClientCacheWindows(VistATestClientCache):
     if username and password:
       self.__signIn__(username, password)
     self.__changeNamesapce__()
+  def __del__(self):
+    if self._connection:
+      self._connection.close()
 
 class VistATestClientCacheLinux(VistATestClient):
   DEFAULT_CACHE_CMD = "ccontrol session cache"
@@ -103,6 +111,9 @@ class VistATestClientCacheLinux(VistATestClient):
     if username and password:
       self.__signIn__(username, password)
     self.__changeNamesapce__()
+  def __del__(self):
+    if self._connection:
+      self._connection.close()
 
 def isLinuxSystem():
   return sys.platform.startswith("linux")

@@ -26,31 +26,33 @@ except ImportError:
   pass
 from VistATestClient import VistATestClientFactory
 
-def getAllPackagesPatchHistory(testClient, outputFile):
-  try:
-    allPackages = GetAllPackages(testClient, outputFile)
-    if not allPackages:
-      testClient.getConnection().terminate()
-      return
-    for package in allPackages:
-      print ("Parsing Package %s" % package[0])
-      #if not (package[0] == "PHARMACY" and package[1] == "PS"): continue
-      GetPackagePatchHistory(testClient, outputFile, package[0], package[1])
-  except ValueError, e:
-    print e
-#  except:
-#    print ("Unexpected Error!")
-#    pass
-  testClient.getConnection().terminate()
-"""Return a list of tuple of 2 (PackageName, Primary Namespace)vs
-on Error, just return None
+""" Class to find and store patch history for each package
 """
-def GetAllPackages(testClient, outputFile):
-  connection = testClient.getConnection()
-  result = None
-  try:
-    connection.logfile = open(outputFile,'wb')
-    testClient.waitForPrompt()
+class PackagePatchSequenceParser(object):
+  def __init__(self, testClient, logFileName):
+    self._testClient = testClient
+    self._logFileName = logFileName
+    self._packageMapping = dict()
+    self._packagePatchHist = dict()
+
+  def getAllPackagesPatchHistory(self):
+    self.createAllPackageMapping()
+    for (package, namespace) in self._packageMapping.iteritems():
+      print ("Parsing Package %s" % package)
+      #if not (package[0] == "PHARMACY" and package[1] == "PS"): continue
+      result = self.getPackagePatchHistory(package, namespace)
+      self._packagePatchHist[package] = result
+  
+  def printPackagePatchHist(self, packageName):
+    import pprint
+    if packageName in self._packagePatchHist:
+      pprint.pprint(self._packagePatchHist[packageName].patchHistory)
+
+  def createAllPackageMapping(self):
+    connection = self._testClient.getConnection()
+    result = None
+    connection.logfile = open(self._logFileName,'wb')
+    self._testClient.waitForPrompt()
     connection.send("S DUZ=1 D Q^DI\r")
     connection.expect("Select OPTION:")
     # print file entry
@@ -72,56 +74,31 @@ def GetAllPackages(testClient, outputFile):
     connection.expect("DEVICE:")
     connection.send(";132;99999\r")
     connection.expect("Select OPTION:")
-    result = parseAllPackges(connection.before)
+    self.__parseAllPackges__(connection.before)
     connection.send("\r")
     connection.logfile.close()
-  except TIMEOUT:
-    print "TimeOut"
-    print str(connection)
-    connection.terminate()
-  except ExceptionPexpect:
-    connection.terminate()
-  except EOF:
-    connection.terminate()
-  return result
 
-def parseAllPackges(allPackageString):
-  allLines = allPackageString.split('\r\n')
-  packageStart = False
-  result = None
-  for line in allLines:
-    line = line.strip()
-    if len(line) == 0:
-      continue
-    if re.search("^-+$", line):
-      packageStart = True
-      continue
-    if packageStart:
-      if not result: result = []
-      result.append((line[:32].strip(), line[32:].strip()))
-      print ("Name is [%s], Namespace is [%s]" % (line[:32].strip(), line[32:].strip()))
-  return result
+  def __parseAllPackges__(self, allPackageString):
+    allLines = allPackageString.split('\r\n')
+    packageStart = False
+    for line in allLines:
+      line = line.strip()
+      if len(line) == 0:
+        continue
+      if re.search("^-+$", line):
+        packageStart = True
+        continue
+      if packageStart:
+        packageName = line[:32].strip()
+        packageNamespace = line[32:].strip()
+        self._packageMapping[packageName] = packageNamespace
+        print ("Name is [%s], Namespace is [%s]" % (packageName, packageNamespace))
 
-def findChoiceNumber(choiceTxt, matchString, namespace):
-  print ("txt is [%s]" % choiceTxt)
-  choiceLines = choiceTxt.split('\r\n')
-  for line in choiceLines:
-    if len(line.rstrip()) == 0:
-      continue
-    result = re.search('^ +(?P<number>[1-9])   %s +%s$' % (matchString, namespace), line)
-    if result:
-      print (line)
-      return result.group('number')
-    else:
-      continue
-  return None
-
-def GetPackagePatchHistory(testClient, outputFile, packageName, namespace):
-  connection = testClient.getConnection()
-  result = None
-  try:
-    connection.logfile = open(outputFile,'ab')
-    testClient.waitForPrompt()
+  def getPackagePatchHistory(self, packageName, namespace):
+    connection = self._testClient.getConnection()
+    result = None
+    connection.logfile = open(self._logFileName,'ab')
+    self._testClient.waitForPrompt()
     connection.send("S DUZ=1 D ^XUP\r")
     connection.expect("Select OPTION NAME:")
     connection.send("EVE\r" )
@@ -170,16 +147,30 @@ def GetPackagePatchHistory(testClient, outputFile, packageName, namespace):
     connection.send("\r")
     connection.expect("Do you really want to halt?")
     connection.send("\r")
-  except TIMEOUT:
-    print "TimeOut"
-    print str(connection)
-    connection.terminate()
-  except ExceptionPexpect:
-    connection.terminate()
-  except EOF:
-    connection.terminate()
-  return result
+    connection.logfile.close()
+    return result
 
+  def __del__(self):
+    if self._testClient:
+      self._testClient.getConnection().terminate()
+
+def findChoiceNumber(choiceTxt, matchString, namespace):
+  print ("txt is [%s]" % choiceTxt)
+  choiceLines = choiceTxt.split('\r\n')
+  for line in choiceLines:
+    if len(line.rstrip()) == 0:
+      continue
+    result = re.search('^ +(?P<number>[1-9])   %s +%s$' % (matchString, namespace), line)
+    if result:
+      print (line)
+      return result.group('number')
+    else:
+      continue
+  return None
+
+class AllPackagePatchInfo(object):
+  def __init__(self):
+    pass
 """Store the Patch History related to a Package
 """
 class PackagePatchHistory(object):
@@ -295,9 +286,6 @@ def parseKIDSPatchHistory(historyString, packageName, namespace):
       result.addPatchInfo(patchInfo)
       if patchInfo.hasVersion():
         result.setVersion(patchInfo.version)
-  if result:
-    import pprint
-    pprint.pprint(result.patchHistory)
   return result
 
 if __name__ == '__main__':
@@ -311,4 +299,7 @@ if __name__ == '__main__':
     testClient = VistATestClientFactory.createVistATestClient(system)
   if not testClient:
     sys.exit(-1)
-  getAllPackagesPatchHistory(testClient, sys.argv[2])
+  packagePatchHist = PackagePatchSequenceParser(testClient, sys.argv[2])
+  packagePatchHist.getAllPackagesPatchHistory()
+  packagePatchHist.printPackagePatchHist("TOOLKIT")
+  testClient.getConnection().terminate()
