@@ -16,6 +16,7 @@
 import sys
 import os
 import re
+import glob
 from datetime import datetime
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 try:
@@ -28,13 +29,46 @@ from VistATestClient import VistATestClientFactory
 
 """ Class to find and store patch history for each package
 """
-class PackagePatchSequenceParser(object):
+class PackagePatchSequenceAnalyzer(object):
   def __init__(self, testClient, logFileName):
     self._testClient = testClient
     self._logFileName = logFileName
     self._packageMapping = dict()
     self._packagePatchHist = dict()
-
+  
+  def generateKIDSPatchSequence(self, patchDir):
+    kidsInfoParser = KIDSPatchInfoParser()
+    patchList = kidsInfoParser.analyzeFOIAPatchDir(patchDir)
+    outPatchList = []
+    for patchInfo in patchList:
+      packageName = patchInfo.package
+      namespace = patchInfo.namespace
+      self.getPackagePatchHistByNamespace(namespace)
+      assert self._packageMapping[namespace] == packageName
+      if self.isPatchReadyToInstall(patchInfo, self._packagePatchHist.get(packageName)):
+        outPatchList.append(patchInfo)
+    print outPatchList
+  def isPatchReadyToInstall(self, patchInfo, patchHist):
+    if not patchHist or not patchHist.hasPatchHistory():
+      return True # if no such an package or hist info, just return True
+    if patchHist.hasSeqNo(patchInfo.seqNo):
+      print "SeqNo %s is already installed" % patchInfo.seqNo
+      return False
+    seqNo = patchHist.getLatestSeqNo()
+    if patchInfo.seqNo < seqNo:
+      print "SeqNo %s less than latest one" % patchInfo.seqNo
+      return False
+    # assume the patch no is the last part of the install name
+    patchNo = patchInfo.installName.split("*")[-1]
+    if patchHist.hasPatchNo(patchNo):
+      print "patchNo %s is already installed" % patchNo
+      return False
+    # check all the dependencies 
+    for item in patchInfo.depKIDSPatch:
+      patchNo = item.split("*")[-1]
+      if not patchHist.hasPatchNo(patchNo):
+        return False
+    return True
   def getAllPackagesPatchHistory(self):
     self.createAllPackageMapping()
     for (namespace, package) in self._packageMapping.iteritems():
@@ -47,7 +81,7 @@ class PackagePatchSequenceParser(object):
     if not self._packageMapping:
       self.createAllPackageMapping()
     for (namespace, package) in self._packageMapping.iteritems():
-      if package == packageName:
+      if package == packageName and package not in self._packagePatchHist:
         result = self.getPackagePatchHistory(package, namespace)
         self._packagePatchHist[package] = result
         break
@@ -56,6 +90,7 @@ class PackagePatchSequenceParser(object):
       self.createAllPackageMapping()
     if namespace in self._packageMapping:
       package = self._packageMapping[namespace]
+      if package in self._packagePatchHist: return
       result = self.getPackagePatchHistory(package, namespace)
       self._packagePatchHist[package] = result
   def printPackagePatchHist(self, packageName):
@@ -205,8 +240,33 @@ class PackagePatchHistory(object):
     self.version = None
   def addPatchInfo(self, PatchInfo):
     self.patchHistory.append(PatchInfo)
+  def hasPatchHistory(self):
+    return len(self.patchHistory) > 0
   def setVersion(self, version):
     self.version = version
+  def hasSeqNo(self, seqNo):
+    for patchInfo in self.patchHistory:
+      if patchInfo.seqNo == seqNo:
+        return True
+    return False
+  def hasPatchNo(self, patchNo):
+    for patchInfo in self.patchHistory:
+      if patchInfo.patchNo == patchNo:
+        return True;
+    return False
+  def getLastPatchInfo(self):
+    if len(self.patchHistory) == 0:
+      return None
+    return self.patchHistory[-1]
+  def getLatestSeqNo(self):
+    if not self.hasPatchHistory():
+      return 0
+    last = len(self.patchHistory)
+    for index in range(last,0,-1):
+      patchInfo = self.patchHistory[index-1]
+      if patchInfo.seqNo:
+        return patchInfo.seqNo
+    return 0
   def __str__(self):
     return self.patchHistory.__str__()
   def __repr__(self):
@@ -354,7 +414,19 @@ class KIDSPatchInfoParser(object):
   def __init__(self):
     pass
   def analyzeFOIAPatchDir(self, patchDir):
-    pass
+    assert os.path.exists(patchDir)
+    patchList = []
+    kidsFiles = glob.glob(os.path.join(patchDir, "*.KID"))
+    for kidsFile in kidsFiles:
+      infoName = kidsFile.replace("KID","TXT")
+      if os.path.exists(infoName):
+        patchInfo = self.parseKIDSInfoFile(kidsFile, infoName)
+        patchList.append(patchInfo)
+      else:
+        print ("Warning, KIDS info file %s does not exit" % infoName )
+    patchList = sorted(patchList, cmp=lambda x,y: cmp(x.rundate, y.rundate))
+    print patchList
+    return patchList
   def parseKIDSInfoFile(self, kidsFile, infoFile):
     kidsPatchInfo = KIDSPatchInfo()
     assert os.path.exists(kidsFile)
@@ -365,10 +437,8 @@ class KIDSPatchInfoParser(object):
       line = line.rstrip(" \r\n")
       if len(line) == 0:
         continue
-      print ("Current line is [%s]" % line)
       """ subject part are treated as end of parser section for now"""
       if self.SUBJECT_PART_START_REGEX.search(line):
-        print "subject line is %s" % line
         break;
       ret = self.RUNDATE_DESIGNATION_REGEX.search(line)
       if ret:
@@ -402,7 +472,6 @@ class KIDSPatchInfoParser(object):
       if ret:
         self.parseAssociatedPart(line.strip(), kidsPatchInfo)
         continue
-    print (kidsPatchInfo)
     return kidsPatchInfo
 
   def parseAssociatedPart(self, infoString, kidsPatchInfo):
@@ -417,20 +486,21 @@ def testMain():
     print ("Need at least two arguments")
     sys.exit()
   testClient = None
-  if len(sys.argv) > 2:
+  if len(sys.argv) > 3:
     system = int(sys.argv[1])
     testClient = VistATestClientFactory.createVistATestClient(system)
   if not testClient:
     sys.exit(-1)
-  packagePatchHist = PackagePatchSequenceParser(testClient, sys.argv[2])
+  packagePatchHist = PackagePatchSequenceAnalyzer(testClient, sys.argv[2])
+  packagePatchHist.generateKIDSPatchSequence(sys.argv[3])
   #packagePatchHist.getAllPackagesPatchHistory()
-  packagePatchHist.getPackagePatchHistByName("TOOLKIT")
-  packagePatchHist.printPackageLastPatch("TOOLKIT")
-  packagePatchHist.getPackagePatchHistByName("IMAGING")
-  packagePatchHist.printPackageLastPatch("IMAGING")
-  packagePatchHist.getPackagePatchHistByNamespace("VPR")
-  packagePatchHist.printPackagePatchHist("VIRTUAL PATIENT RECORD")
-  packagePatchHist.printPackageLastPatch("VIRTUAL PATIENT RECORD")
+#  packagePatchHist.getPackagePatchHistByName("TOOLKIT")
+#  packagePatchHist.printPackageLastPatch("TOOLKIT")
+#  packagePatchHist.getPackagePatchHistByName("IMAGING")
+#  packagePatchHist.printPackageLastPatch("IMAGING")
+#  packagePatchHist.getPackagePatchHistByNamespace("VPR")
+#  packagePatchHist.printPackagePatchHist("VIRTUAL PATIENT RECORD")
+#  packagePatchHist.printPackageLastPatch("VIRTUAL PATIENT RECORD")
   testClient.getConnection().terminate()
 
 def testKIDSInfoParser():
@@ -439,9 +509,8 @@ def testKIDSInfoParser():
     print ("Need at least two arguments")
     sys.exit()
   kidsInfoParser = KIDSPatchInfoParser()
-  kidsInfoParser.parseKIDSInfoFile(sys.argv[1], sys.argv[2])
+  kidsInfoParser.analyzeFOIAPatchDir(sys.argv[1])
 """ main
 """
 if __name__ == '__main__':
-  #testMain()
-  testKIDSInfoParser()
+  testMain()
