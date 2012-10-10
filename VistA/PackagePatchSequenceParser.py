@@ -37,16 +37,41 @@ class PackagePatchSequenceParser(object):
 
   def getAllPackagesPatchHistory(self):
     self.createAllPackageMapping()
-    for (package, namespace) in self._packageMapping.iteritems():
-      print ("Parsing Package %s" % package)
+    for (namespace, package) in self._packageMapping.iteritems():
+      print ("Parsing Package %s, namespace" % (package, namespace))
       #if not (package[0] == "PHARMACY" and package[1] == "PS"): continue
       result = self.getPackagePatchHistory(package, namespace)
       self._packagePatchHist[package] = result
   
+  def getPackagePatchHistByName(self, packageName):
+    if not self._packageMapping:
+      self.createAllPackageMapping()
+    for (namespace, package) in self._packageMapping.iteritems():
+      if package == packageName:
+        result = self.getPackagePatchHistory(package, namespace)
+        self._packagePatchHist[package] = result
+        break
+  def getPackagePatchHistByNamespace(self, namespace):
+    if not self._packageMapping:
+      self.createAllPackageMapping()
+    if namespace in self._packageMapping:
+      package = self._packageMapping[namespace]
+      result = self.getPackagePatchHistory(package, namespace)
+      self._packagePatchHist[package] = result
   def printPackagePatchHist(self, packageName):
     import pprint
     if packageName in self._packagePatchHist:
+      print ("-----------------------------------------")
+      print ("--- Package %s Patch History Info ---" % packageName)
+      print ("-----------------------------------------")
       pprint.pprint(self._packagePatchHist[packageName].patchHistory)
+  def printPackageLastPatch(self, packageName):
+    import pprint
+    if packageName in self._packagePatchHist:
+      print ("-----------------------------------------")
+      print ("--- Package %s Last Patch Info ---" % packageName)
+      print ("-----------------------------------------")
+      pprint.pprint(self._packagePatchHist[packageName].patchHistory[-1])
 
   def createAllPackageMapping(self):
     connection = self._testClient.getConnection()
@@ -91,7 +116,7 @@ class PackagePatchSequenceParser(object):
       if packageStart:
         packageName = line[:32].strip()
         packageNamespace = line[32:].strip()
-        self._packageMapping[packageName] = packageNamespace
+        self._packageMapping[packageNamespace] = packageName
         print ("Name is [%s], Namespace is [%s]" % (packageName, packageNamespace))
 
   def getPackagePatchHistory(self, packageName, namespace):
@@ -162,7 +187,6 @@ def findChoiceNumber(choiceTxt, matchString, namespace):
       continue
     result = re.search('^ +(?P<number>[1-9])   %s +%s$' % (matchString, namespace), line)
     if result:
-      print (line)
       return result.group('number')
     else:
       continue
@@ -188,6 +212,9 @@ class PackagePatchHistory(object):
   def __repr__(self):
     return self.patchHistory.__str__()
 
+"""
+a class to parse and store KIDS patch history info
+"""
 class PatchInfo(object):
   PATCH_HISTORY_LINE_REGEX = re.compile("^   [0-9]")
   PATCH_VERSION_LINE_REGEX = re.compile("^VERSION: [0-9.]+ ")
@@ -288,6 +315,51 @@ def parseKIDSPatchHistory(historyString, packageName, namespace):
         result.setVersion(patchInfo.version)
   return result
 
+"""
+a class to store information related to a KIDS build
+"""
+class KIDSPatchInfo(object):
+  def __init__(self, package, namespace):
+    self.package = package
+    self.namespace = namespace
+    self.version = None
+    self.patchNo = None
+    self.seqNo = None
+    self.installName = None
+    self.kidsFilePath = None
+    self.depKIDSPatch = None
+    self.rundate = None
+  def __str__(self):
+    pass
+  def __repr__(self):
+    pass
+"""
+This class will read the KIDS installation guide and extract information and 
+create a KIDPatch Info object
+"""
+class KIDSPatchInfoParser(object):
+  RUNDATE_DESIGNATION_REGEX=re.compile("^Run Date: (?P<date>[A-Z]{3,3} [0-9][0-9], [0-9]{4,4}) +Designation: (?P<design>.*)")
+  RUNDATE_FORMAT_STRING = "%b %d, %Y"
+  def __init__(self):
+    self._kidsPatchInfo = KIDSPatchInfo()
+  def analyzeFOIAPatchDir(self, patchDir):
+    pass
+  def parseKIDSInfoFile(kidsFile, infoFile):
+    inputFile = open(infoFile, 'rb')
+    for line in inputFile:
+      if len(line.rstrip()) == 0:
+        continue
+      ret = RUNDATE_DESIGNATION_REGEX.search(line)
+      if ret:
+        self._kidsPatchInfo.rundate = datetime(ret.group('date'),RUNDATE_FORMAT_STRING)
+        self._kidsPatchInfo.installName = ret.group('design')
+
+
+
+
+
+""" main
+"""
 if __name__ == '__main__':
   print ("sys.argv is %s" % sys.argv)
   if len(sys.argv) <= 1:
@@ -300,6 +372,12 @@ if __name__ == '__main__':
   if not testClient:
     sys.exit(-1)
   packagePatchHist = PackagePatchSequenceParser(testClient, sys.argv[2])
-  packagePatchHist.getAllPackagesPatchHistory()
-  packagePatchHist.printPackagePatchHist("TOOLKIT")
+  #packagePatchHist.getAllPackagesPatchHistory()
+  packagePatchHist.getPackagePatchHistByName("TOOLKIT")
+  packagePatchHist.printPackageLastPatch("TOOLKIT")
+  packagePatchHist.getPackagePatchHistByName("IMAGING")
+  packagePatchHist.printPackageLastPatch("IMAGING")
+  packagePatchHist.getPackagePatchHistByNamespace("VPR")
+  packagePatchHist.printPackagePatchHist("VIRTUAL PATIENT RECORD")
+  packagePatchHist.printPackageLastPatch("VIRTUAL PATIENT RECORD")
   testClient.getConnection().terminate()
