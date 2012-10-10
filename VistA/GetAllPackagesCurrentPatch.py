@@ -36,9 +36,11 @@ def getAllPackagesPatchHistory(testClient, outputFile):
       print ("Parsing Package %s" % package[0])
       #if not (package[0] == "PHARMACY" and package[1] == "PS"): continue
       GetPackagePatchHistory(testClient, outputFile, package[0], package[1])
-  except:
-    print ("Unexpected Error!")
-    pass
+  except ValueError, e:
+    print e
+#  except:
+#    print ("Unexpected Error!")
+#    pass
   testClient.getConnection().terminate()
 """Return a list of tuple of 2 (PackageName, Primary Namespace)vs
 on Error, just return None
@@ -155,7 +157,7 @@ def GetPackagePatchHistory(testClient, outputFile, packageName, namespace):
         connection.expect("DEVICE:")
         connection.send(";132;99999\r")
         connection.expect("Select Utilities Option:")
-        result = parseKIDSPatchHistory(connection.before)
+        result = parseKIDSPatchHistory(connection.before, packageName, namespace)
         break
       else:
         break
@@ -178,8 +180,26 @@ def GetPackagePatchHistory(testClient, outputFile, packageName, namespace):
     connection.terminate()
   return result
 
+"""Store the Patch History related to a Package
+"""
+class PackagePatchHistory(object):
+  def __init__(self, packageName, namespace):
+    self.packageName = packageName
+    self.namespace = namespace
+    self.patchHistory = []
+    self.version = None
+  def addPatchInfo(self, PatchInfo):
+    self.patchHistory.append(PatchInfo)
+  def setVersion(self, version):
+    self.version = version
+  def __str__(self):
+    return self.patchHistory.__str__()
+  def __repr__(self):
+    return self.patchHistory.__str__()
+
 class PatchInfo(object):
   PATCH_HISTORY_LINE_REGEX = re.compile("^   [0-9]")
+  PATCH_VERSION_LINE_REGEX = re.compile("^VERSION: [0-9.]+ ")
   PATCH_VERSION_START_INDEX = 3
   PATCH_APPLIED_DATETIME_INDEX = 20
   PATCH_APPLIED_USERNAME_INDEX = 50
@@ -192,13 +212,13 @@ class PatchInfo(object):
     self.seqNo = None
     self.datetime = None
     self.userName = None
+    self.version = None
     self.__parseHistoryLine__(historyLine)
   def __parseHistoryLine__(self, historyLine):
     totalLen = len(historyLine)
     if totalLen < self.PATCH_VERSION_START_INDEX:
       return
-    if historyLine.find(";Created on") >=0:
-      print (historyLine)
+    if historyLine.find(";Created on") >=0: # ignore the Created on format
       return
     if totalLen > self.PATCH_APPLIED_USERNAME_INDEX:
       self.userName = historyLine[self.PATCH_APPLIED_USERNAME_INDEX:].strip()
@@ -213,6 +233,9 @@ class PatchInfo(object):
         self.datetime = datetime.strptime(datetimePart, self.DATETIME_FORMAT_STRING)
       else:
         self.datetime = datetime.strptime(datetimePart, self.DATE_FORMAT_STRING)
+    if self.isVersionLine(historyLine):
+      self.__parseVersionInfo__(historyLine[:self.PATCH_APPLIED_DATETIME_INDEX].strip())
+      return
     patchPart = historyLine[self.PATCH_VERSION_START_INDEX:self.PATCH_APPLIED_DATETIME_INDEX]
     seqIndex = patchPart.find("SEQ #")
     if seqIndex >= 0:
@@ -220,26 +243,40 @@ class PatchInfo(object):
       self.seqNo = int(patchPart[seqIndex+5:].strip())
     else:
       self.patchNo = int(patchPart.strip())
-    
+  
+  def hasVersion(self):
+    return self.version != None
+  def __parseVersionInfo__(self, historyLine):
+    self.seqNo = None
+    self.patchNo = None
+    self.version = historyLine[historyLine.find("VERSION: ")+9:]
   @staticmethod
   def isValidHistoryLine(historyLine):
-    return PatchInfo.PATCH_HISTORY_LINE_REGEX.search(historyLine) != None
+    return PatchInfo.isPatchLine(historyLine) or PatchInfo.isVersionLine(historyLine) 
+  @staticmethod
+  def isPatchLine(patchLine):
+    return PatchInfo.PATCH_HISTORY_LINE_REGEX.search(patchLine) != None
+  @staticmethod
+  def isVersionLine(versionLine):
+    return PatchInfo.PATCH_VERSION_LINE_REGEX.search(versionLine) != None
   
   def __str__(self):
     retString = ""
+    if self.version:
+      retString += "Ver: %s " % self.version
     if self.patchNo:
       retString += "%d" % self.patchNo
     if self.seqNo:
       retString += " SEQ #%d" % self.seqNo
     if self.datetime:
-      retString += ", %s" % self.datetime.strftime(self.DATETIME_FORMAT_STRING)
+      retString += " %s " % self.datetime.strftime(self.DATETIME_FORMAT_STRING)
     if self.userName:
-      retString += ", %s" % self.userName
+      retString += " %s" % self.userName
     return retString
   def __repr__(self):
     return self.__str__()
 
-def parseKIDSPatchHistory(historyString):
+def parseKIDSPatchHistory(historyString, packageName, namespace):
   allLines = historyString.split('\r\n')
   patchHistoryStart = False
   result = None
@@ -253,12 +290,14 @@ def parseKIDSPatchHistory(historyString):
     if patchHistoryStart:
       if not PatchInfo.isValidHistoryLine(line):
         continue
-      if not result: result = []
+      if not result: result = PackagePatchHistory(packageName, namespace)
       patchInfo = PatchInfo(line)
-      result.append((patchInfo))
+      result.addPatchInfo(patchInfo)
+      if patchInfo.hasVersion():
+        result.setVersion(patchInfo.version)
   if result:
     import pprint
-    pprint.pprint(result)
+    pprint.pprint(result.patchHistory)
   return result
 
 if __name__ == '__main__':
