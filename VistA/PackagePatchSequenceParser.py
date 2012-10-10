@@ -319,22 +319,24 @@ def parseKIDSPatchHistory(historyString, packageName, namespace):
 a class to store information related to a KIDS build
 """
 class KIDSPatchInfo(object):
-  def __init__(self, package, namespace):
-    self.package = package
-    self.namespace = namespace
+  def __init__(self):
+    self.package = None
+    self.namespace = None
     self.version = None
-    self.patchNo = None
     self.seqNo = None
     self.installName = None
     self.kidsFilePath = None
-    self.depKIDSPatch = None
     self.rundate = None
     self.status = None
     self.priority = None
+    self.depKIDSPatch = []
   def __str__(self):
-    pass
+    return ("%s, %s, %s, %s, %s, %s, %s, %s, %s, \n%s" % 
+             (self.package, self.namespace, self.version,
+              self.seqNo, self.installName, self.kidsFilePath,
+              self.rundate, self.status, self.priority, self.depKIDSPatch) )
   def __repr__(self):
-    pass
+    return self.__str__()
 """
 This class will read the KIDS installation guide and extract information and 
 create a KIDPatch Info object
@@ -344,36 +346,72 @@ class KIDSPatchInfoParser(object):
   RUNDATE_FORMAT_STRING = "%b %d, %Y"
   PACKAGE_PRIORITY_REGEX = re.compile("^Package : (?P<name>.*) Priority: (?P<pri>.*)")
   VERSION_STATUS_REGEX = re.compile("^Version : (?P<no>.*) Status: (?P<status>.*)")
+  SUBJECT_PART_START_REGEX = re.compile("^Subject: ")
+  ASSOCIATED_PATCH_START_REGEX = re.compile("^Associated patches: ")
+  ASSOCIATED_PATCH_START_INDEX = 20
+  ASSOCIATED_PATCH_SECION_REGEX = re.compile("^ {%d,%d}\(v\)" % (ASSOCIATED_PATCH_START_INDEX,
+                                                                 ASSOCIATED_PATCH_START_INDEX))
   def __init__(self):
-    self._kidsPatchInfo = KIDSPatchInfo()
+    pass
   def analyzeFOIAPatchDir(self, patchDir):
     pass
-  def parseKIDSInfoFile(kidsFile, infoFile):
+  def parseKIDSInfoFile(self, kidsFile, infoFile):
+    kidsPatchInfo = KIDSPatchInfo()
+    assert os.path.exists(kidsFile)
+    assert os.path.exists(infoFile)
+    kidsPatchInfo.kidsFilePath = os.path.normpath(kidsFile)
     inputFile = open(infoFile, 'rb')
     for line in inputFile:
-      if len(line.rstrip()) == 0:
+      line = line.rstrip(" \r\n")
+      if len(line) == 0:
         continue
-      ret = RUNDATE_DESIGNATION_REGEX.search(line)
+      print ("Current line is [%s]" % line)
+      """ subject part are treated as end of parser section for now"""
+      if self.SUBJECT_PART_START_REGEX.search(line):
+        print "subject line is %s" % line
+        break;
+      ret = self.RUNDATE_DESIGNATION_REGEX.search(line)
       if ret:
-        self._kidsPatchInfo.rundate = datetime(ret.group('date'),RUNDATE_FORMAT_STRING)
-        self._kidsPatchInfo.installName = ret.group('design')
+        kidsPatchInfo.rundate = datetime.strptime(ret.group('date'), self.RUNDATE_FORMAT_STRING)
+        kidsPatchInfo.installName = ret.group('design')
         continue
-      ret = PACKAGE_PRIORITY_REGEX.search(line)
+      ret = self.PACKAGE_PRIORITY_REGEX.search(line)
       if ret:
         package = ret.group('name').strip()
         (namespace, name) = package.split('-')
-        self._kidsPatchInfo.namespace = namespace.strip()
-        self._kidsPatchInfo.package = name.strip()
+        kidsPatchInfo.namespace = namespace.strip()
+        kidsPatchInfo.package = name.strip()
+        kidsPatchInfo.priority = ret.group('pri').strip()
         continue
-      ret = VERSION_STATUS_REGEX.search(line)
+      ret = self.VERSION_STATUS_REGEX.search(line)
       if ret:
-        version = ret.group('no')
+        versionInfo = ret.group('no').strip()
+        pos = versionInfo.find('SEQ #')
+        if pos >= 0:
+          kidsPatchInfo.version = versionInfo[:pos].strip()
+          kidsPatchInfo.seqNo = versionInfo[pos+5:].strip()
+        else:
+          kidsPatchInfo.version = versionInfo.strip()
+        kidsPatchInfo.status = ret.group('status').strip()
+      """ find out the dep patch info """
+      ret = self.ASSOCIATED_PATCH_START_REGEX.search(line)
+      if ret:
+        self.parseAssociatedPart(line[self.ASSOCIATED_PATCH_START_INDEX:], kidsPatchInfo)
+        continue
+      ret = self.ASSOCIATED_PATCH_SECION_REGEX.search(line)
+      if ret:
+        self.parseAssociatedPart(line.strip(), kidsPatchInfo)
+        continue
+    print (kidsPatchInfo)
+    return kidsPatchInfo
 
+  def parseAssociatedPart(self, infoString, kidsPatchInfo):
+    pos = infoString.find("<<=")
+    assert pos >=0
+    patchInfo = infoString[3:pos].strip()
+    kidsPatchInfo.depKIDSPatch.append(patchInfo)
 
-
-""" main
-"""
-if __name__ == '__main__':
+def testMain():
   print ("sys.argv is %s" % sys.argv)
   if len(sys.argv) <= 1:
     print ("Need at least two arguments")
@@ -394,3 +432,16 @@ if __name__ == '__main__':
   packagePatchHist.printPackagePatchHist("VIRTUAL PATIENT RECORD")
   packagePatchHist.printPackageLastPatch("VIRTUAL PATIENT RECORD")
   testClient.getConnection().terminate()
+
+def testKIDSInfoParser():
+  print ("sys.argv is %s" % sys.argv)
+  if len(sys.argv) <= 1:
+    print ("Need at least two arguments")
+    sys.exit()
+  kidsInfoParser = KIDSPatchInfoParser()
+  kidsInfoParser.parseKIDSInfoFile(sys.argv[1], sys.argv[2])
+""" main
+"""
+if __name__ == '__main__':
+  #testMain()
+  testKIDSInfoParser()
