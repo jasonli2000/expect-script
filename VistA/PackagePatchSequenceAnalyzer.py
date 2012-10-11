@@ -19,12 +19,6 @@ import re
 import glob
 from datetime import datetime
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-try:
-  from winpexpect import winspawn, TIMEOUT, EOF, ExceptionPexpect
-except ImportError:
-  import pexpect
-  from pexpect import TIMEOUT, EOF, ExceptionPexpect
-  pass
 from VistATestClient import VistATestClientFactory
 
 """ Class to find and store patch history for each package
