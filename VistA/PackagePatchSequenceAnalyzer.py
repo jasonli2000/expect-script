@@ -506,9 +506,6 @@ def testMain():
 #  packagePatchHist.getPackagePatchHistByNamespace("VPR")
 #  packagePatchHist.printPackagePatchHist("VIRTUAL PATIENT RECORD")
 #  packagePatchHist.printPackageLastPatch("VIRTUAL PATIENT RECORD")
-    testClient.getConnection().terminate()
-  except Exception as ex:
-    raise ex
   finally:
     testClient.getConnection().terminate()
 
