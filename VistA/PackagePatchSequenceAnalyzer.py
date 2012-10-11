@@ -20,6 +20,27 @@ import glob
 from datetime import datetime
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from VistATestClient import VistATestClientFactory
+import logging
+import sys
+logger = logging.getLogger()
+
+def initConsoleLogging(defaultLevel=logging.INFO,
+                       formatStr = '%(asctime)s %(levelname)s %(message)s'):
+    logger.setLevel(defaultLevel)
+    consoleHandler = logging.StreamHandler(sys.stdout)
+    formatter = logging.Formatter(formatStr)
+    consoleHandler.setLevel(defaultLevel)
+    consoleHandler.setFormatter(formatter)
+    logger.addHandler(consoleHandler)
+
+def initFileLogging(outputFileName, defaultLevel=logging.INFO,
+                    formatStr = '%(asctime)s %(levelname)s %(message)s'):
+    logger.setLevel(defaultLevel)
+    fileHandle = logging.FileHandler(outputFileName, 'w')
+    formatter = logging.Formatter(formatStr)
+    fileHandle.setLevel(defaultLevel)
+    fileHandle.setFormatter(formatter)
+    logger.addHandler(fileHandle)
 
 """ Class to find and store patch history for each package
 """
@@ -29,48 +50,77 @@ class PackagePatchSequenceAnalyzer(object):
     self._logFileName = logFileName
     self._packageMapping = dict()
     self._packagePatchHist = dict()
+    initConsoleLogging()
   
   def generateKIDSPatchSequence(self, patchDir):
     kidsInfoParser = KIDSPatchInfoParser()
-    patchList = kidsInfoParser.analyzeFOIAPatchDir(patchDir)
+    (patchList, kidsDict) = kidsInfoParser.analyzeFOIAPatchDir(patchDir)
     outPatchList = []
     for patchInfo in patchList:
       packageName = patchInfo.package
       namespace = patchInfo.namespace
       self.getPackagePatchHistByNamespace(namespace)
       assert self._packageMapping[namespace] == packageName
-      if self.isPatchReadyToInstall(patchInfo, self._packagePatchHist.get(packageName)):
+      if self.isPatchReadyToInstall(patchInfo,
+                                    self._packagePatchHist.get(packageName),
+                                    kidsDict,
+                                    patchList):
         outPatchList.append(patchInfo)
-    print outPatchList
-  def isPatchReadyToInstall(self, patchInfo, patchHist):
+    logger.info(outPatchList)
+  def hasPatchInstalled(self, namespace, version, patchNo):
+    return False
+  def isPatchReadyToInstall(self, patchInfo, patchHist, kidsDict, patchList):
     if not patchHist or not patchHist.hasPatchHistory():
-      print "no patch hist for %s" % patchInfo.package
+      logger.info("no patch hist for %s" % patchInfo.package)
       return True # if no such an package or hist info, just return True
-    print "Checking %s, %s, %s" % (patchInfo.package, patchInfo.seqNo, patchInfo.installName)
-    print patchHist.getLastPatchInfo(), patchHist.getLatestSeqNo()
+    logger.debug("Checking %s, %s, %s" % (patchInfo.package, patchInfo.seqNo, patchInfo.installName))
+    logger.debug("%s, %s" % (patchHist.getLastPatchInfo(), patchHist.getLatestSeqNo()))
     if patchHist.hasSeqNo(patchInfo.seqNo):
-      print "SeqNo %s is already installed" % patchInfo.seqNo
+      logger.info("SeqNo %s is already installed" % patchInfo.seqNo)
       return False
     seqNo = patchHist.getLatestSeqNo()
     if patchInfo.seqNo < seqNo:
-      print "SeqNo %s less than latest one" % patchInfo.seqNo
+      logger.info("SeqNo %s less than latest one" % patchInfo.seqNo)
       return False
     # assume the patch no is the last part of the install name
     patchNo = patchInfo.installName.split("*")[-1]
     if patchHist.hasPatchNo(patchNo):
-      print "patchNo %s is already installed" % patchNo
+      logger.info("patchNo %s is already installed" % patchNo)
       return False
     # check all the dependencies 
     for item in patchInfo.depKIDSPatch:
-      patchNo = item.split("*")[-1]
-      if not patchHist.hasPatchNo(patchNo):
-        print "dep %s is not installed" % item
+      if item in kidsDict: # we are going to install the dep patch
+        """ make sure installation is in the right order """
+        itemIndex = self.indexInPatchList(item, patchList)
+        patchIndex = self.indexInPatchList(patchInfo.installName, patchList)
+        if itemIndex >= patchIndex:
+          logger.warn("%s is out of order with %s" % (item, patchInfo))
+          return False
+        else:
+          return True
+      (namespace, ver, patchNo) = item.split("*")
+      if namespace == patchInfo.namespace:
+        assert ver == patchInfo.version
+        if not patchHist.hasPatchNo(patchNo):
+          logger.warn("dep %s is not installed for %s %s" % 
+                      (item, patchInfo.installName, patchInfo.kidsFilePath))
         return False
+      else:
+        if not self.hasPatchInstalled(namespace, ver, patchNo):
+          logger.warn("dep %s is not installed for %s %s" % 
+                      (item, patchInfo.installName, patchInfo.kidsFilePath))
+          return False
     return True
+  @staticmethod
+  def indexInPatchList(installName, patchList):
+    for index in range(0,len(patchList)):
+      if patchList[index].installName == installName:
+        return index
+    return -1 
   def getAllPackagesPatchHistory(self):
     self.createAllPackageMapping()
     for (namespace, package) in self._packageMapping.iteritems():
-      print ("Parsing Package %s, namespace" % (package, namespace))
+      logger.info("Parsing Package %s, namespace" % (package, namespace))
       #if not (package[0] == "PHARMACY" and package[1] == "PS"): continue
       result = self.getPackagePatchHistory(package, namespace)
       self._packagePatchHist[package] = result
@@ -150,7 +200,7 @@ class PackagePatchSequenceAnalyzer(object):
         packageName = line[:32].strip()
         packageNamespace = line[32:].strip()
         self._packageMapping[packageNamespace] = packageName
-        print ("Name is [%s], Namespace is [%s]" % (packageName, packageNamespace))
+        #print ("Name is [%s], Namespace is [%s]" % (packageName, packageNamespace))
 
   def getPackagePatchHistory(self, packageName, namespace):
     connection = self._testClient.getConnection()
@@ -213,7 +263,7 @@ class PackagePatchSequenceAnalyzer(object):
       self._testClient.getConnection().terminate()
 
 def findChoiceNumber(choiceTxt, matchString, namespace):
-  print ("txt is [%s]" % choiceTxt)
+  logger.debug("txt is [%s]" % choiceTxt)
   choiceLines = choiceTxt.split('\r\n')
   for line in choiceLines:
     if len(line.rstrip()) == 0:
@@ -395,6 +445,7 @@ class KIDSPatchInfo(object):
               self.rundate, self.status, self.priority, self.depKIDSPatch) )
   def __repr__(self):
     return self.__str__()
+
 """
 This class will read the KIDS installation guide and extract information and 
 create a KIDPatch Info object
@@ -414,22 +465,54 @@ class KIDSPatchInfoParser(object):
   def analyzeFOIAPatchDir(self, patchDir):
     assert os.path.exists(patchDir)
     patchList = []
+    """find out all the kids files in the directory"""
     kidsFiles = glob.glob(os.path.join(patchDir, "*.KID"))
+    kidsFiles.extend(glob.glob(os.path.join(patchDir, "*.KIDs")))
+    kidsInstallNameDict = dict()
     for kidsFile in kidsFiles:
-      infoName = kidsFile.replace("KID","TXT")
-      if os.path.exists(infoName):
-        patchInfo = self.parseKIDSInfoFile(kidsFile, infoName)
+      logger.debug("%s" % kidsFile)
+      installNameList = self.getKIDSBuildInstallName(kidsFile)
+      for installName in installNameList:
+        if installName in kidsInstallNameDict:
+          logger.warn("%s is already in the dict" % installName)
+        kidsInstallNameDict[installName] = os.path.normpath(kidsFile)
+        """ this is to fix the install name inconsistence """
+        logger.debug(installName)
+        (namespace, ver, patchNo) = installName.split('*')
+        newVer = ver.replace(".0","")
+        if newVer != ver:
+          newInstallName = "%s*%s*%s" % (namespace, newVer, patchNo)
+          kidsInstallNameDict[newInstallName] = os.path.normpath(kidsFile)
+    logger.info("%s" % sorted(kidsInstallNameDict.keys()))
+    kidsInfoFiles = glob.glob(os.path.join(patchDir, "*.TXT"))
+    for kidsInfoFile in kidsInfoFiles:
+        patchInfo = self.parseKIDSInfoFile(kidsInfoFile)
+        """ only add to list for info that is related to a KIDS patch"""
+        if patchInfo.installName not in kidsInstallNameDict:
+          logger.warn("no KIDS file related to %s" % patchInfo)
+          continue
+        patchInfo.kidsFilePath = kidsInstallNameDict[patchInfo.installName]
         patchList.append(patchInfo)
-      else:
-        print ("Warning, KIDS info file %s does not exit" % infoName )
-    patchList = sorted(patchList, cmp=lambda x,y: cmp(x.rundate, y.rundate))
-    print patchList
-    return patchList
-  def parseKIDSInfoFile(self, kidsFile, infoFile):
-    kidsPatchInfo = KIDSPatchInfo()
+    patchList = topologicSort(patchList)
+    logger.debug("%s" % patchList)
+    return (patchList, kidsInstallNameDict)
+  """ one KIDS file can contains several kids build together """
+  def getKIDSBuildInstallName(self, kidsFile):
     assert os.path.exists(kidsFile)
+    kidsFileHandle = open(kidsFile, 'rb')
+    for line in kidsFileHandle:
+      line = line.rstrip(" \r\n")
+      if len(line) == 0:
+        continue
+      ret = re.search('^\*\*KIDS\*\*:(?P<name>.*)\^$', line)
+      if ret:
+        kidNames = ret.group('name').strip().split('^')
+        return kidNames
+    kidsFileHandle.close()
+    assert False
+  def parseKIDSInfoFile(self, infoFile):
+    kidsPatchInfo = KIDSPatchInfo()
     assert os.path.exists(infoFile)
-    kidsPatchInfo.kidsFilePath = os.path.normpath(kidsFile)
     inputFile = open(infoFile, 'rb')
     for line in inputFile:
       line = line.rstrip(" \r\n")
@@ -477,6 +560,47 @@ class KIDSPatchInfoParser(object):
     assert pos >=0
     patchInfo = infoString[3:pos].strip()
     kidsPatchInfo.depKIDSPatch.append(patchInfo)
+
+""" generate a sequence of patches that need to be applied by 
+    using topologic sort algorithm
+""" 
+def topologicSort(patchInfoList):
+  """ first build a directory with installname as the key """
+  patchDict = dict((x.installName, x) for x in patchInfoList)
+  """ new generate the dependency graph"""
+  depDict = dict()
+  for patchInfo in patchInfoList:
+    if patchInfo.depKIDSPatch:
+      """ reduce the node by removing info not in the current patch """
+      for item in patchInfo.depKIDSPatch:
+        if item not in patchDict:
+          continue
+        if patchInfo.installName not in depDict:
+          depDict[patchInfo.installName] = set()
+        depDict[patchInfo.installName].add(item)
+  """ new generate a set consist of patch info that does have dependencies"""
+  startingSet = set()
+  for patch in patchDict.iterkeys():
+    found = False
+    for depSet in depDict.itervalues():
+      if patch in depSet:
+        found = True
+        break;
+    if not found:
+      startingSet.add(patch)
+  visitSet = set() # store all node that are already visited
+  result = [] # store the final result
+  for item in startingSet:
+    visitNode(item, depDict, visitSet, result)
+  return [patchDict[x] for x in result]
+
+def visitNode(nodeName, depDict, visitSet, result):
+  if nodeName in visitSet: # already visited, just return
+    return
+  visitSet.add(nodeName)
+  for item in depDict.get(nodeName,[]):
+    visitNode(item, depDict, visitSet, result)
+  result.append(nodeName)
 
 def testMain():
   print ("sys.argv is %s" % sys.argv)
