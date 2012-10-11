@@ -495,9 +495,10 @@ def testMain():
     testClient = VistATestClientFactory.createVistATestClient(system)
   if not testClient:
     sys.exit(-1)
-  packagePatchHist = PackagePatchSequenceAnalyzer(testClient, sys.argv[2])
-  packagePatchHist.generateKIDSPatchSequence(sys.argv[3])
-  #packagePatchHist.getAllPackagesPatchHistory()
+  try:
+    packagePatchHist = PackagePatchSequenceAnalyzer(testClient, sys.argv[2])
+    packagePatchHist.generateKIDSPatchSequence(sys.argv[3])
+    #packagePatchHist.getAllPackagesPatchHistory()
 #  packagePatchHist.getPackagePatchHistByName("TOOLKIT")
 #  packagePatchHist.printPackageLastPatch("TOOLKIT")
 #  packagePatchHist.getPackagePatchHistByName("IMAGING")
@@ -505,7 +506,11 @@ def testMain():
 #  packagePatchHist.getPackagePatchHistByNamespace("VPR")
 #  packagePatchHist.printPackagePatchHist("VIRTUAL PATIENT RECORD")
 #  packagePatchHist.printPackageLastPatch("VIRTUAL PATIENT RECORD")
-  testClient.getConnection().terminate()
+    testClient.getConnection().terminate()
+  except Exception as ex:
+    raise ex
+  finally:
+    testClient.getConnection().terminate()
 
 def testKIDSInfoParser():
   print ("sys.argv is %s" % sys.argv)
