@@ -50,7 +50,10 @@ class PackagePatchSequenceAnalyzer(object):
     print outPatchList
   def isPatchReadyToInstall(self, patchInfo, patchHist):
     if not patchHist or not patchHist.hasPatchHistory():
+      print "no patch hist for %s" % patchInfo.package
       return True # if no such an package or hist info, just return True
+    print "Checking %s, %s, %s" % (patchInfo.package, patchInfo.seqNo, patchInfo.installName)
+    print patchHist.getLastPatchInfo(), patchHist.getLatestSeqNo()
     if patchHist.hasSeqNo(patchInfo.seqNo):
       print "SeqNo %s is already installed" % patchInfo.seqNo
       return False
@@ -67,6 +70,7 @@ class PackagePatchSequenceAnalyzer(object):
     for item in patchInfo.depKIDSPatch:
       patchNo = item.split("*")[-1]
       if not patchHist.hasPatchNo(patchNo):
+        print "dep %s is not installed" % item
         return False
     return True
   def getAllPackagesPatchHistory(self):
@@ -246,12 +250,12 @@ class PackagePatchHistory(object):
     self.version = version
   def hasSeqNo(self, seqNo):
     for patchInfo in self.patchHistory:
-      if patchInfo.seqNo == seqNo:
+      if patchInfo.seqNo == int(seqNo):
         return True
     return False
   def hasPatchNo(self, patchNo):
     for patchInfo in self.patchHistory:
-      if patchInfo.patchNo == patchNo:
+      if patchInfo.patchNo == int(patchNo):
         return True;
     return False
   def getLastPatchInfo(self):
