@@ -57,12 +57,17 @@ class DefaultKIDSBuildInstallation:
     connection.expect("Select INSTALL NAME:")
     connection.send(self._kidsInstallName+"\r")
     self.handleKIDSBuildMenuOption(connection)
-    connection.expect("Want KIDS to Rebuild Menu Trees Upon Completion of Install?")
-    connection.send("NO\r")
-    connection.expect("Want KIDS to INHIBIT LOGONs during the install?")
-    connection.send("NO\r")
-    connection.expect("Want to DISABLE Scheduled Options, Menu Options, and Protocols?")
-    connection.send("NO\r")
+    selectionList = ["Want KIDS to Rebuild Menu Trees Upon Completion of Install\?",
+                     "Want KIDS to INHIBIT LOGONs during the install?",
+                     "Want to DISABLE Scheduled Options, Menu Options, and Protocols\?",
+                     "DEVICE:"]
+    while True:
+      index = connection.expect(selectionList)
+      if index != len(selectionList) - 1:
+        connection.send("NO\r")
+        continue
+      else:
+        break
  
   def __handleKIDSLoadOptions__(self, connection, reinst):
     while True:
@@ -85,7 +90,6 @@ class DefaultKIDSBuildInstallation:
     return True
 
   def __setupDevice__(self, connection):
-    connection.expect("DEVICE:")
     connection.send("HOME;82;999\r")
   
   def __postKIDSBuildInstallation__(self,vistATestClient):
@@ -98,7 +102,7 @@ class DefaultKIDSBuildInstallation:
     connection.send("\r")
     connection.expect("Select Systems Manager Menu Option:")
     connection.send("\r")
-    index = connection.expect([vistTestClient.getPrompt(), "Do you really want to halt?"])
+    index = connection.expect([vistATestClient.getPrompt(), "Do you really want to halt?"])
     if index == 0:
       connection.send("HALT\r")
     elif index == 1:
