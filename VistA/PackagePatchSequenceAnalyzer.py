@@ -20,6 +20,7 @@ import glob
 from datetime import datetime
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from VistATestClient import VistATestClientFactory
+from DefaultKIDSBuildInstallation import DefaultKIDSBuildInstallation
 import logging
 import sys
 logger = logging.getLogger()
@@ -50,6 +51,7 @@ class PackagePatchSequenceAnalyzer(object):
     self._logFileName = logFileName
     self._packageMapping = dict()
     self._packagePatchHist = dict()
+    self._outPatchList = []
     initConsoleLogging()
 
   def generateKIDSPatchSequence(self, patchDir):
@@ -70,6 +72,23 @@ class PackagePatchSequenceAnalyzer(object):
     logger.info("Total patches are %d" % len(outPatchList))
     for patchInfo in outPatchList:
       logger.info(patchInfo)
+    self._outPatchList = outPatchList
+  def applyKIDSPatchSequence(self):
+    for patchInfo in self._outPatchList:
+      """ need to corrent the patch install name for ver """
+      logger.info("Applying KIDS Patch %s" % patchInfo)
+      installName = patchInfo.installName
+      (namespace,ver,patch) = installName.split("*")
+      if ver.find(".") < 0:
+        ver += ".0"
+        installName = "%s*%s*%s" % (namespace, ver, patch)
+      kidsInstaller = DefaultKIDSBuildInstallation(patchInfo.kidsFilePath,
+                                                   installName, self._logFileName)
+      result = kidsInstaller.runInstallation(self._testClient)
+      if not result:
+        logger.error("Failed to nstall patch %s: KIDS %s" %
+                      (installName, patchInfo.kidsFilePath))
+        break
   def hasPatchInstalled(self, namespace, version, patchNo):
     if namespace not in self._packageMapping:
       return False
@@ -643,6 +662,7 @@ def testMain():
   try:
     packagePatchHist = PackagePatchSequenceAnalyzer(testClient, sys.argv[2])
     packagePatchHist.generateKIDSPatchSequence(sys.argv[3])
+    packagePatchHist.applyKIDSPatchSequence()
     #packagePatchHist.getAllPackagesPatchHistory()
 #  packagePatchHist.getPackagePatchHistByName("TOOLKIT")
 #  packagePatchHist.printPackageLastPatch("TOOLKIT")

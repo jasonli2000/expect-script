@@ -25,10 +25,8 @@ class DefaultKIDSBuildInstallation:
     self._logFile = logFile
 
   def __setupLogFile__(self, connection):
-    if connection.logfile:
-      return
     if self._logFile:
-      connection.logfile = open(self._logFile, "wb")
+      connection.logfile = open(self._logFile, "ab")
     else:
       connection.logfile = sys.stdout
   
