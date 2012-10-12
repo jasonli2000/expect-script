@@ -78,9 +78,10 @@ class VistATestClientCache(VistATestClient):
   def __del__(self):
     if self._connection:
       self._connection.close()
-
+""" Make sure that plink is in you path
+"""
 class VistATestClientCacheWindows(VistATestClientCache):
-  DEFAULT_WIN_TELNET_CMD =  "C:/users/jason.li/Downloads/apps/plink.exe -telnet 127.0.0.1 -P 23"
+  DEFAULT_WIN_TELNET_CMD =  "plink.exe -telnet 127.0.0.1 -P 23"
   def __init__(self, namespace):
     assert namespace, "Must provide a namespace"
     prompt = namespace + CACHE_PROMPT_END

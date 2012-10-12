@@ -13,27 +13,28 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-try:
-  from winpexpect import winspawn, TIMEOUT, EOF, ExceptionPexpect
-except ImportError:
-  import pexpect
-  pass
 import sys
+import os
+from VistATestClient import VistATestClientFactory
 
 class DefaultKIDSBuildInstallation:
-  def __init__(self, kidsFile, kidsPackageName, logFile = None):
-    self._kidsFile = kidsFile
-    self._kidsPackageName = kidsPackageName
+  def __init__(self, kidsFile, kidsInstallName, logFile = None):
+    assert os.path.exists(kidsFile)
+    self._kidsFile = os.path.normpath(kidsFile)
+    self._kidsInstallName = kidsInstallName
     self._logFile = logFile
 
   def __setupLogFile__(self, connection):
+    if connection.logfile:
+      return
     if self._logFile:
       connection.logfile = open(self._logFile, "wb")
     else:
       connection.logfile = sys.stdout
   
-  def __gotoKIDSInstallationMenu__(self, connection):
-    connection.expect("[A-Za-z0-9]+>")
+  def __gotoKIDSInstallationMenu__(self, vistATestClient):
+    connection = vistATestClient.getConnection()
+    vistATestClient.waitForPrompt()
     connection.send("S DUZ=1 D ^XUP\r")
     connection.expect("Select OPTION NAME: ")
     connection.send("EVE\r")
@@ -54,7 +55,7 @@ class DefaultKIDSBuildInstallation:
   
   def __installKIDSPackage__(self, connection):
     connection.expect("Select INSTALL NAME:")
-    connection.send(self._kidsPackageName+"\r")
+    connection.send(self._kidsInstallName+"\r")
     self.handleKIDSBuildMenuOption(connection)
     connection.expect("Want KIDS to Rebuild Menu Trees Upon Completion of Install?")
     connection.send("NO\r")
@@ -68,7 +69,7 @@ class DefaultKIDSBuildInstallation:
       index = connection.expect(["OK to continue with Load",
                             "Want to Continue with Load?",
                             "Select Installation Option:",
-                            self._kidsPackageName + "   Install Completed"])
+                            self._kidsInstallName + "   Install Completed"])
       if index == 0:
         connection.send("YES\r")
         continue
@@ -87,38 +88,53 @@ class DefaultKIDSBuildInstallation:
     connection.expect("DEVICE:")
     connection.send("HOME;82;999\r")
   
-  def __postKIDSBuildInstallation__(self, connection):
-      connection.expect("Select Installation Option:")
-      connection.send("\r")
-      connection.expect("Select Kernel Installation & Distribution System Option:")
-      connection.send("\r")
-      connection.expect("Select Programmer Options Option:")
-      connection.send("\r")
-      connection.expect("Select Systems Manager Menu Option:")
-      connection.send("\r")
-      index = connection.expect(["[A-Za-z0-9]+>", "Do you really want to halt?"])
-      if index == 0:
-        connection.send("HALT\r")
-      elif index == 1:
-        connection.send("YES\r")
+  def __postKIDSBuildInstallation__(self,vistATestClient):
+    connection = vistATestClient.getConnection()
+    connection.expect("Select Installation Option:")
+    connection.send("\r")
+    connection.expect("Select Kernel Installation & Distribution System Option:")
+    connection.send("\r")
+    connection.expect("Select Programmer Options Option:")
+    connection.send("\r")
+    connection.expect("Select Systems Manager Menu Option:")
+    connection.send("\r")
+    index = connection.expect([vistTestClient.getPrompt(), "Do you really want to halt?"])
+    if index == 0:
+      connection.send("HALT\r")
+    elif index == 1:
+      connection.send("YES\r")
   def handleKIDSBuildMenuOption(self, connection):
     pass
-  def runInstallation(self, connection, reinst=True):
-    try:
-      self.__setupLogFile__(connection)
-      self.__gotoKIDSInstallationMenu__(connection)
-      self.__preLoadKIDSFile__(connection)
-      result = self.__handleKIDSLoadOptions__(connection, reinst)
-      if result:
-        self.__installKIDSPackage__(connection)
-        self.__setupDevice__(connection)
-        self.__postKIDSBuildInstallation__(connection)
-      connection.terminate()
-    except TIMEOUT:
-      print "TimeOut"
-      print str(connection)
-      connection.terminate()
-    except ExceptionPexpect:
-      connection.terminate()
-    except EOF:
-      connection.terminate()
+  def runInstallation(self, vistATestClient, reinst=True):
+    connection = vistATestClient.getConnection()
+    self.__setupLogFile__(connection)
+    self.__gotoKIDSInstallationMenu__(vistATestClient)
+    self.__preLoadKIDSFile__(connection)
+    result = self.__handleKIDSLoadOptions__(connection, reinst)
+    if result:
+      self.__installKIDSPackage__(connection)
+      self.__setupDevice__(connection)
+      self.__postKIDSBuildInstallation__(vistATestClient)
+    return result
+
+if __name__ == "__main__":
+  print ("sys.argv is %s" % sys.argv)
+  if len(sys.argv) <= 1:
+    print ("Need at least two arguments")
+    sys.exit()
+  testClient = None
+  if len(sys.argv) > 2:
+    system = int(sys.argv[1])
+    testClient = VistATestClientFactory.createVistATestClient(system)
+  if not testClient:
+    sys.exit(-1)
+  logFile = None
+  if len(sys.argv) > 4:
+    logFile = sys.argv[4]
+  try:
+    defaultKidsInstall = DefaultKIDSBuildInstallation(sys.argv[2],
+                                                      sys.argv[3],
+                                                      logFile)
+    defaultKidsInstall.runInstallation(testClient)
+  finally:
+    testClient.getConnection().terminate()

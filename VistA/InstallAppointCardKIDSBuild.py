@@ -14,7 +14,7 @@
 # limitations under the License.
 
 import sys
-from CreateConnection import createExpectConnection
+from VistATestClient import VistATestClientFactory
 from DefaultKIDSBuildInstallation import DefaultKIDSBuildInstallation
 
 class AppointCardKIDSBuild(DefaultKIDSBuildInstallation):
@@ -34,11 +34,11 @@ if __name__ == '__main__':
   if len(sys.argv) <= 1:
     print ("Need at least two arguments")
     sys.exit()
-  expectConn = None
+  testClient = None
   if len(sys.argv) > 2:
     system = int(sys.argv[1])
-    expectConn = createExpectConnection(system)
-  if not expectConn:
+    testClient = VistATestClientFactory.createVistATestClient(system)
+  if not testClient:
     sys.exit(-1)
   logFile = None
   if len(sys.argv) > 4:
@@ -46,4 +46,4 @@ if __name__ == '__main__':
   appointCardKidsBuild = AppointCardKIDSBuild(sys.argv[2],
                                               sys.argv[3],
                                               logFile)
-  appointCardKidsBuild.runInstallation(expectConn, False)
+  appointCardKidsBuild.runInstallation(testClient, False)
