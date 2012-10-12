@@ -51,7 +51,7 @@ class PackagePatchSequenceAnalyzer(object):
     self._packageMapping = dict()
     self._packagePatchHist = dict()
     initConsoleLogging()
-  
+
   def generateKIDSPatchSequence(self, patchDir):
     kidsInfoParser = KIDSPatchInfoParser()
     (patchList, kidsDict) = kidsInfoParser.analyzeFOIAPatchDir(patchDir)
@@ -66,9 +66,19 @@ class PackagePatchSequenceAnalyzer(object):
                                     kidsDict,
                                     patchList):
         outPatchList.append(patchInfo)
-    logger.info(outPatchList)
+    logger.info("Total patches are %d" % len(outPatchList))
   def hasPatchInstalled(self, namespace, version, patchNo):
-    return False
+    if namespace not in self._packageMapping:
+      return False
+    packageName = self._packageMapping[namespace]
+    if packageName not in self._packagePatchHist:
+      self.getPackagePatchHistByNamespace(namespace)
+    patchHist = self._packagePatchHist[packageName]
+    if patchHist.version:
+      if float(patchHist.version) != float(version):
+        logger.info("Diff ver %s, %s" % (patchHist.version, version))
+        return False
+    return patchHist.hasPatchNo(patchNo)
   def isPatchReadyToInstall(self, patchInfo, patchHist, kidsDict, patchList):
     if not patchHist or not patchHist.hasPatchHistory():
       logger.info("no patch hist for %s" % patchInfo.package)
@@ -87,7 +97,7 @@ class PackagePatchSequenceAnalyzer(object):
     if patchHist.hasPatchNo(patchNo):
       logger.info("patchNo %s is already installed" % patchNo)
       return False
-    # check all the dependencies 
+    # check all the dependencies
     for item in patchInfo.depKIDSPatch:
       if item in kidsDict: # we are going to install the dep patch
         """ make sure installation is in the right order """
@@ -97,17 +107,17 @@ class PackagePatchSequenceAnalyzer(object):
           logger.warn("%s is out of order with %s" % (item, patchInfo))
           return False
         else:
-          return True
+          continue
       (namespace, ver, patchNo) = item.split("*")
       if namespace == patchInfo.namespace:
         assert ver == patchInfo.version
         if not patchHist.hasPatchNo(patchNo):
-          logger.warn("dep %s is not installed for %s %s" % 
+          logger.warn("dep %s is not installed for %s %s" %
                       (item, patchInfo.installName, patchInfo.kidsFilePath))
-        return False
+          return False
       else:
         if not self.hasPatchInstalled(namespace, ver, patchNo):
-          logger.warn("dep %s is not installed for %s %s" % 
+          logger.warn("dep %s is not installed for %s %s" %
                       (item, patchInfo.installName, patchInfo.kidsFilePath))
           return False
     return True
@@ -116,7 +126,7 @@ class PackagePatchSequenceAnalyzer(object):
     for index in range(0,len(patchList)):
       if patchList[index].installName == installName:
         return index
-    return -1 
+    return -1
   def getAllPackagesPatchHistory(self):
     self.createAllPackageMapping()
     for (namespace, package) in self._packageMapping.iteritems():
@@ -124,7 +134,7 @@ class PackagePatchSequenceAnalyzer(object):
       #if not (package[0] == "PHARMACY" and package[1] == "PS"): continue
       result = self.getPackagePatchHistory(package, namespace)
       self._packagePatchHist[package] = result
-  
+
   def getPackagePatchHistByName(self, packageName):
     if not self._packageMapping:
       self.createAllPackageMapping()
@@ -329,7 +339,7 @@ class PatchInfo(object):
   PATCH_VERSION_START_INDEX = 3
   PATCH_APPLIED_DATETIME_INDEX = 20
   PATCH_APPLIED_USERNAME_INDEX = 50
-  
+
   DATETIME_FORMAT_STRING = "%b %d, %Y@%H:%M:%S"
   DATE_FORMAT_STRING = "%b %d, %Y"
   DATE_TIME_SEPERATOR = "@"
@@ -369,7 +379,7 @@ class PatchInfo(object):
       self.seqNo = int(patchPart[seqIndex+5:].strip())
     else:
       self.patchNo = int(patchPart.strip())
-  
+
   def hasVersion(self):
     return self.version != None
   def __parseVersionInfo__(self, historyLine):
@@ -378,14 +388,14 @@ class PatchInfo(object):
     self.version = historyLine[historyLine.find("VERSION: ")+9:]
   @staticmethod
   def isValidHistoryLine(historyLine):
-    return PatchInfo.isPatchLine(historyLine) or PatchInfo.isVersionLine(historyLine) 
+    return PatchInfo.isPatchLine(historyLine) or PatchInfo.isVersionLine(historyLine)
   @staticmethod
   def isPatchLine(patchLine):
     return PatchInfo.PATCH_HISTORY_LINE_REGEX.search(patchLine) != None
   @staticmethod
   def isVersionLine(versionLine):
     return PatchInfo.PATCH_VERSION_LINE_REGEX.search(versionLine) != None
-  
+
   def __str__(self):
     retString = ""
     if self.version:
@@ -439,7 +449,7 @@ class KIDSPatchInfo(object):
     self.priority = None
     self.depKIDSPatch = []
   def __str__(self):
-    return ("%s, %s, %s, %s, %s, %s, %s, %s, %s, \n%s" % 
+    return ("%s, %s, %s, %s, %s, %s, %s, %s, %s, \n%s" %
              (self.package, self.namespace, self.version,
               self.seqNo, self.installName, self.kidsFilePath,
               self.rundate, self.status, self.priority, self.depKIDSPatch) )
@@ -447,7 +457,7 @@ class KIDSPatchInfo(object):
     return self.__str__()
 
 """
-This class will read the KIDS installation guide and extract information and 
+This class will read the KIDS installation guide and extract information and
 create a KIDPatch Info object
 """
 class KIDSPatchInfoParser(object):
@@ -494,7 +504,7 @@ class KIDSPatchInfoParser(object):
         patchInfo.kidsFilePath = kidsInstallNameDict[patchInfo.installName]
         patchList.append(patchInfo)
     patchList = topologicSort(patchList)
-    logger.debug("%s" % patchList)
+    logger.info("After topologic sort %d" % len(patchList))
     return (patchList, kidsInstallNameDict)
   """ one KIDS file can contains several kids build together """
   def getKIDSBuildInstallName(self, kidsFile):
@@ -561,9 +571,10 @@ class KIDSPatchInfoParser(object):
     patchInfo = infoString[3:pos].strip()
     kidsPatchInfo.depKIDSPatch.append(patchInfo)
 
-""" generate a sequence of patches that need to be applied by 
-    using topologic sort algorithm
-""" 
+""" generate a sequence of patches that need to be applied by
+    using topologic sort algorithm, also for the patch under the
+    same namepsace, make sure it was applied in the right sequence
+"""
 def topologicSort(patchInfoList):
   """ first build a directory with installname as the key """
   patchDict = dict((x.installName, x) for x in patchInfoList)
@@ -588,11 +599,12 @@ def topologicSort(patchInfoList):
         break;
     if not found:
       startingSet.add(patch)
+  startingList = sorted([x for x in startingSet], key=lambda item: patchDict[item].rundate)
   visitSet = set() # store all node that are already visited
   result = [] # store the final result
-  for item in startingSet:
+  for item in startingList:
     visitNode(item, depDict, visitSet, result)
-  return [patchDict[x] for x in result]
+  return sorted([patchDict[x] for x in result], key=lambda item: item.rundate)
 
 def visitNode(nodeName, depDict, visitSet, result):
   if nodeName in visitSet: # already visited, just return
