@@ -61,12 +61,15 @@ class PackagePatchSequenceAnalyzer(object):
       namespace = patchInfo.namespace
       self.getPackagePatchHistByNamespace(namespace)
       assert self._packageMapping[namespace] == packageName
+      logger.info("Checking for patch info %s" % patchInfo)
       if self.isPatchReadyToInstall(patchInfo,
                                     self._packagePatchHist.get(packageName),
                                     kidsDict,
                                     patchList):
         outPatchList.append(patchInfo)
     logger.info("Total patches are %d" % len(outPatchList))
+    for patchInfo in outPatchList:
+      logger.info(patchInfo)
   def hasPatchInstalled(self, namespace, version, patchNo):
     if namespace not in self._packageMapping:
       return False
@@ -378,7 +381,12 @@ class PatchInfo(object):
       self.patchNo = int(patchPart[:seqIndex].strip())
       self.seqNo = int(patchPart[seqIndex+5:].strip())
     else:
-      self.patchNo = int(patchPart.strip())
+      try:
+        self.patchNo = int(patchPart.strip())
+      except ValueError as ex:
+        print ex
+        logger.error("History Line is %s" % historyLine)
+        self.patchNo = 0
 
   def hasVersion(self):
     return self.version != None
@@ -599,12 +607,19 @@ def topologicSort(patchInfoList):
         break;
     if not found:
       startingSet.add(patch)
-  startingList = sorted([x for x in startingSet], key=lambda item: patchDict[item].rundate)
+  startingList = [y.installName for y in sorted([patchDict[x] for x in startingSet], cmp=comparePatchInfo)]
   visitSet = set() # store all node that are already visited
   result = [] # store the final result
   for item in startingList:
     visitNode(item, depDict, visitSet, result)
-  return sorted([patchDict[x] for x in result], key=lambda item: item.rundate)
+  return [patchDict[x] for x in result]
+
+def comparePatchInfo(one, two):
+  assert isinstance(one, KIDSPatchInfo)
+  assert isinstance(two, KIDSPatchInfo)
+  if one.package == two.package and one.version == two.version:
+    return cmp(int(one.seqNo), int(two.seqNo))
+  return cmp(one.rundate, two.rundate)
 
 def visitNode(nodeName, depDict, visitSet, result):
   if nodeName in visitSet: # already visited, just return
