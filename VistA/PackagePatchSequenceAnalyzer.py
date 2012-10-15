@@ -720,7 +720,8 @@ def main():
     packagePatchHist = PackagePatchSequenceAnalyzer(testClient,
                                               outputDir)
     packagePatchHist.generateKIDSPatchSequence(inputPatchDir)
-    packagePatchHist.applyKIDSPatchSequence()
+    if result['installKIDS']:
+      packagePatchHist.applyKIDSPatchSequence()
   finally:
     testClient.getConnection().terminate()
 if __name__ == '__main__':
