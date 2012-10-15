@@ -46,13 +46,16 @@ def initFileLogging(outputFileName, defaultLevel=logging.INFO,
 """ Class to find and store patch history for each package
 """
 class PackagePatchSequenceAnalyzer(object):
-  def __init__(self, testClient, logFileName):
+  DEFAULT_VISTA_LOG_FILENAME = "VISTA.log"
+  DEFAULT_OUTPUT_FILE_LOG = "PatchAnalyzer.log"
+  def __init__(self, testClient, logFileDir):
     self._testClient = testClient
-    self._logFileName = logFileName
+    self._logFileName = os.path.join(logFileDir, self.DEFAULT_VISTA_LOG_FILENAME)
     self._packageMapping = dict()
     self._packagePatchHist = dict()
     self._outPatchList = []
     initConsoleLogging()
+    initFileLogging(os.path.join(logFileDir, self.DEFAULT_OUTPUT_FILE_LOG))
 
   def generateKIDSPatchSequence(self, patchDir):
     kidsInfoParser = KIDSPatchInfoParser()
@@ -673,7 +676,6 @@ def testMain():
 #  packagePatchHist.printPackageLastPatch("VIRTUAL PATIENT RECORD")
   finally:
     testClient.getConnection().terminate()
-
 def testKIDSInfoParser():
   print ("sys.argv is %s" % sys.argv)
   if len(sys.argv) <= 1:
@@ -683,5 +685,43 @@ def testKIDSInfoParser():
   kidsInfoParser.analyzeFOIAPatchDir(sys.argv[1])
 """ main
 """
+def main():
+  import argparse
+  parser = argparse.ArgumentParser(description='FOIA Patch Sequence Analyzer')
+  parser.add_argument('-i', required=True, dest='patchFileDir',
+                      help='input file path to the folder that contains all the FOIA patches')
+  parser.add_argument('-s', required=True, dest='system', choices='12',
+                      help='1: Cache, 2: GTM')
+  parser.add_argument('-o', required=True, dest='outputLogDir',
+                      help='Output dirctory to store all log file information')
+  parser.add_argument('--namespace', required=False, dest='namespace',
+                      default="VISTA")
+  parser.add_argument('--username', required=False, dest='username',
+                      default=None)
+  parser.add_argument('--password', required=False, dest='password',
+                      default=None)
+  parser.add_argument('--installKIDSPatch', required=False, dest='installKIDS',
+                      default=False)
+  result = vars(parser.parse_args());
+  print (result)
+  system = int(result['system'])
+  inputPatchDir = result['patchFileDir']
+  assert os.path.exists(inputPatchDir)
+  outputDir = result['outputLogDir']
+  assert os.path.exists(outputDir)
+  """ create the VistATestClient"""
+  testClient = None
+  testClient = VistATestClientFactory.createVistATestClient(system,
+                  namespace = result['namespace'],
+                  username = result['username'],
+                  password = result['password'])
+  assert testClient
+  try:
+    packagePatchHist = PackagePatchSequenceAnalyzer(testClient,
+                                              outputDir)
+    packagePatchHist.generateKIDSPatchSequence(inputPatchDir)
+    packagePatchHist.applyKIDSPatchSequence()
+  finally:
+    testClient.getConnection().terminate()
 if __name__ == '__main__':
-  testMain()
+  main()
