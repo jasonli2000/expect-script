@@ -70,11 +70,11 @@ class VistATestClientCache(VistATestClient):
   def __changeNamesapce__(self):
     self._connection.send("znspace \"%s\"\r" % self.getNamespace())
   def __signIn__(self, username, password):
-    with self._connection as child:
-      child.expect("Username:")
-      child.send("%s\r" % username)
-      child.expect("Password:")
-      child.send("%s\r" % password)
+    child = self._connection
+    child.expect("Username:")
+    child.send("%s\r" % username)
+    child.expect("Password:")
+    child.send("%s\r" % password)
   def __del__(self):
     if self._connection:
       self._connection.close()
