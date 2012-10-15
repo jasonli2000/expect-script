@@ -98,12 +98,12 @@ class VistATestClientCacheWindows(VistATestClientCache):
     if self._connection:
       self._connection.close()
 
-class VistATestClientCacheLinux(VistATestClient):
+class VistATestClientCacheLinux(VistATestClientCache):
   DEFAULT_CACHE_CMD = "ccontrol session cache"
   def __init__(self, namespace):
     assert namespace, "Must provide a namespace"
     prompt = namespace + CACHE_PROMPT_END
-    super.__init__(self, self.CACHE_ON_LINUX, prompt, namespace)
+    VistATestClientCache.__init__(self, self.CACHE_ON_LINUX, prompt, namespace)
   def createConnection(self, command, username = None, password = None):
     if not command:
         command = self.DEFAULT_CACHE_CMD
